@@ -1,0 +1,48 @@
+{
+  "name": "@quantum-native/quantum-chess-sdk",
+  "version": "0.1.0",
+  "type": "module",
+  "license": "MIT",
+  "description": "Player SDK for building Quantum Chess AIs — match runner, explorer, tournament system, reference AI",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/quantum-native/quantum-chess-sdk.git"
+  },
+  "homepage": "https://quantumchess.net",
+  "keywords": [
+    "quantum-chess",
+    "chess",
+    "quantum",
+    "ai",
+    "sdk",
+    "game-engine",
+    "tournament"
+  ],
+  "exports": {
+    ".": {
+      "import": "./src/index.ts",
+      "types": "./src/index.ts"
+    }
+  },
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "files": [
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "@quantum-native/quantum-forge-chess": ">=1.10.0"
+  },
+  "peerDependenciesMeta": {
+    "@quantum-native/quantum-forge-chess": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  }
+}
