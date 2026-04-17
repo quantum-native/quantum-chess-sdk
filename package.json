@@ -34,13 +34,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit"
   },
-  "peerDependencies": {
+  "dependencies": {
     "@quantum-native/quantum-forge-chess": ">=1.10.0"
-  },
-  "peerDependenciesMeta": {
-    "@quantum-native/quantum-forge-chess": {
-      "optional": true
-    }
   },
   "devDependencies": {
     "typescript": "^5.0.0"
