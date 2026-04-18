@@ -182,4 +182,4 @@ New to Quantum Chess? Learn the rules and strategy at [chess.quantumnative.io](h
 
 ## License
 
-MIT -- see [LICENSE](LICENSE).
+MIT -- see [LICENSE](LICENSE). Note that the quantum simulation engine (`@quantum-native/quantum-forge-chess`) is a separate package with its own license.
