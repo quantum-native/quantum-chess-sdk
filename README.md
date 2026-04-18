@@ -183,5 +183,3 @@ New to Quantum Chess? Learn the rules and strategy at [chess.quantumnative.io](h
 ## License
 
 MIT -- see [LICENSE](LICENSE).
-
-The quantum simulation engine ([`@quantum-native/quantum-forge-chess`](https://www.npmjs.com/package/@quantum-native/quantum-forge-chess)) is included as a dependency and has its own [license](https://quantum.dev).
