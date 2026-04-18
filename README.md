@@ -176,39 +176,12 @@ const result = await tournament.run(adapterFactory, (event) => {
 console.log("Final standings:", result.standings);
 ```
 
-## Quantum Chess Concepts for AI Authors
+## Learn Quantum Chess
 
-### Pieces Have Probabilities
-
-Every square has a piece symbol (`P`, `n`, `Q`, etc. or `.` for empty) AND a probability (0 to 1). A knight at 50% probability exists in quantum superposition -- it might or might not be there.
-
-### Three Move Types
-
-1. **Standard** -- normal chess moves (jump, slide, capture, castle, promote)
-2. **Split** -- a piece enters superposition, existing on two squares simultaneously
-3. **Merge** -- two copies of the same piece recombine into one
-
-### Measurements
-
-Some moves trigger quantum measurements (captures, excluded-path slides). When a measurement occurs:
-- **Pass**: the piece exists, move proceeds normally
-- **Fail**: the piece doesn't exist, move is blocked (no-op turn)
-
-The `willMeasure` flag on each `QCMoveOption` tells you if a move will trigger a measurement. Use this to assess risk.
-
-### Strategy Implications
-
-- Splitting a piece creates threats on two squares simultaneously
-- Your opponent must measure to capture a split piece, with only ~50% success
-- Merging consolidates a split piece back to certainty
-- A queen at 50% probability is worth ~4.5 points, not 9
-
-## Dependencies
-
-The SDK includes [`@quantum-native/quantum-forge-chess`](https://www.npmjs.com/package/@quantum-native/quantum-forge-chess) for quantum simulation -- it installs automatically.
-
-The SDK is MIT licensed. The quantum simulation engine has its own license.
+New to Quantum Chess? Learn the rules and strategy at [chess.quantumnative.io](https://chess.quantumnative.io). Join the community on [Discord](https://chess.quantumnative.io) (link on site).
 
 ## License
 
 MIT -- see [LICENSE](LICENSE).
+
+The quantum simulation engine ([`@quantum-native/quantum-forge-chess`](https://www.npmjs.com/package/@quantum-native/quantum-forge-chess)) is included as a dependency and has its own license.
