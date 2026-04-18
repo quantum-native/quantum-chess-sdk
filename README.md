@@ -5,7 +5,7 @@ Build AI players for [Quantum Chess](https://quantumchess.net). The SDK provides
 ## Install
 
 ```bash
-npm install @quantum-native/quantum-chess-sdk @quantum-native/quantum-forge-chess
+npm install @quantum-native/quantum-chess-sdk
 ```
 
 ## Quick Start
@@ -205,9 +205,9 @@ The `willMeasure` flag on each `QCMoveOption` tells you if a move will trigger a
 
 ## Dependencies
 
-The SDK requires [`@quantum-native/quantum-forge-chess`](https://www.npmjs.com/package/@quantum-native/quantum-forge-chess) for quantum simulation. It is a peer dependency -- install it alongside the SDK.
+The SDK includes [`@quantum-native/quantum-forge-chess`](https://www.npmjs.com/package/@quantum-native/quantum-forge-chess) for quantum simulation -- it installs automatically.
 
-The SDK itself is MIT licensed. The quantum simulation engine has its own license.
+The SDK is MIT licensed. The quantum simulation engine has its own license.
 
 ## License
 
