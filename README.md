@@ -93,11 +93,42 @@ const expectedScore = p * pass.explorer.evaluate().score
                     + (1 - p) * fail.explorer.evaluate().score;
 ```
 
-## Hosting Options
+## Playing Against Your AI
 
-### JavaScript Module (in-browser)
+The easiest way to test your AI: write a `.js` file and upload it in the game.
 
-Export a `QCPlayer` as the default export. Load via URL:
+### 1. Write your AI file
+
+Create `my-ai.js`:
+
+```javascript
+export default {
+  name: "My First AI",
+  control: "ai",
+
+  async chooseMove(view, explorer, clock) {
+    // Pick a random legal move
+    const moves = view.legalMoves.standard;
+    const pick = moves[Math.floor(Math.random() * moves.length)];
+    return { type: "standard", from: pick.from, to: pick.to };
+  }
+};
+```
+
+### 2. Load it in the game
+
+1. Go to **VS AI** in Quantum Chess
+2. Select **Custom AI** as the engine
+3. Click **Upload File** and choose your `.js` file
+4. Click **Start Game**
+
+Your AI plays as the opponent. Edit the file and re-upload to iterate.
+
+## Other Hosting Options
+
+### JavaScript Module (URL)
+
+Host your AI file and load it by URL:
 
 ```typescript
 import { loadCustomAI } from "@quantum-native/quantum-chess-sdk";
