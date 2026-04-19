@@ -786,6 +786,7 @@ export class QuantumChessQuantumAdapter {
         // Superposed piece on source moves to empty target
         this.squareProps.delete(source);
         this.squareProps.set(target, sourceHandle);
+        this.classicalOccupied.delete(source); // source is now empty
         this.pendingPhases.set(sourceHandle, (this.pendingPhases.get(sourceHandle) ?? 0) + 1);
         return;
       }
@@ -793,6 +794,7 @@ export class QuantumChessQuantumAdapter {
         // Superposed piece on target moves to empty source
         this.squareProps.delete(target);
         this.squareProps.set(source, targetHandle);
+        this.classicalOccupied.delete(target); // target is now empty
         this.pendingPhases.set(targetHandle, (this.pendingPhases.get(targetHandle) ?? 0) + 1);
         return;
       }
