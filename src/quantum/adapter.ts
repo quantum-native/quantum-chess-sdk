@@ -208,7 +208,13 @@ export class QuantumChessQuantumAdapter {
       // are mathematically separable but may still be in a SharedState. Factorizing
       // makes destroyProperty a clean removal (no measurement/collapse needed).
       const fas = (this.port as any).factorizeAllSeparable;
-      if (typeof fas === "function") { try { fas(); } catch { /* QF internal error */ } }
+      if (typeof fas === "function" && this.squareProps.size > 0) { try { fas(); } catch { /* QF internal error */ } }
+
+      // Suppress QF warnings during transient property cleanup — reversed gates
+      // leave handles in shared states that are mathematically separable but not
+      // yet factorized. The measurement during destroy is deterministic and correct.
+      const origWarn = typeof console !== "undefined" ? console.warn : undefined;
+      if (origWarn) console.warn = () => {};
 
       const handles = [...this._allHandles];
       for (let i = snapshot.handleCount; i < handles.length; i++) {
@@ -219,6 +225,8 @@ export class QuantumChessQuantumAdapter {
       const keep = handles.slice(0, snapshot.handleCount);
       this._allHandles.clear();
       for (const h of keep) this._allHandles.add(h);
+
+      if (origWarn) console.warn = origWarn;
     }
   }
 

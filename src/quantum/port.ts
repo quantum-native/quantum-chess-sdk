@@ -93,7 +93,12 @@ export function createIsolatedPort(module: QuantumForgeLikeModule): DisposablePo
       // Skip sim.destroy() if all properties were individually destroyed —
       // QF crashes on sim.destroy() after many destroyProperty calls.
       if (propsDestroyed >= propsCreated) return;
+      // Suppress QF warnings during sim teardown — entangled properties from
+      // position replay are expected and the measurement is deterministic.
+      const origWarn = console.warn;
+      console.warn = () => {};
       try { sim.destroy(); } catch { /* corrupted sim */ }
+      console.warn = origWarn;
     }
   };
 }

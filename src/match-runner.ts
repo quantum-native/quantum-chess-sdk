@@ -321,10 +321,10 @@ export class QCMatchRunner {
       // Notify inactive player
       inactivePlayer.onOpponentMove?.(result.moveRecord, engine.getView());
 
-      // Move delay (for AI vs AI spectating)
-      if (config.moveDelayMs && config.moveDelayMs > 0) {
-        await new Promise((r) => setTimeout(r, config.moveDelayMs));
-      }
+      // Yield to the event loop so the browser can repaint the board
+      // before the next player starts thinking. Without this, the human's
+      // move doesn't appear until after the AI responds.
+      await new Promise((r) => setTimeout(r, config.moveDelayMs ?? 0));
 
       // Check win conditions (sandbox skips unless respectWinCondition is on)
       const checkWin = !config.sandbox || config.sandbox.respectWinCondition;
