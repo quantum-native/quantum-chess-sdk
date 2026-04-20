@@ -35,7 +35,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@quantum-native/quantum-forge-chess": ">=1.10.0"
+    "@quantum-native/quantum-forge-chess": "^1.11.2"
   },
   "devDependencies": {
     "typescript": "^5.0.0"
