@@ -210,7 +210,7 @@ The `requestId` ties the response to the request. Include the full `QCMoveChoice
 
 ## Learn Quantum Chess
 
-New to Quantum Chess? Learn the rules and strategy at [chess.quantumnative.io](https://chess.quantumnative.io). Join the community on [Discord](https://chess.quantumnative.io) (link on site).
+New to Quantum Chess? Learn the rules and strategy at [chess.quantumnative.io](https://chess.quantumnative.io). Join the community on [Discord](https://discord.gg/cMJgTBcZDT).
 
 ## License
 
