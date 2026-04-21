@@ -98,8 +98,10 @@ async function main() {
 
   const result = await runner.playMatch(materialAI, opponent, {
     maxPly: 100,
-    onMove(ply, color, moveString) {
-      console.log(`  ply ${ply} (${color}): ${moveString}`);
+    onEvent(event) {
+      if (event.type === "move") {
+        console.log(`  ply ${event.ply} (${event.color}): ${event.moveRecord.moveString}`);
+      }
     },
   });
 
