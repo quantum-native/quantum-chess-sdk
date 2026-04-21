@@ -166,7 +166,17 @@ export class QCMatchRunner {
       // Ask the active player for their move
       let choice: QCMoveChoice;
       try {
-        choice = await activePlayer.chooseMove(view, explorer, clock);
+        const rawChoice = await activePlayer.chooseMove(view, explorer, clock);
+        if (!rawChoice) {
+          // Treat null/undefined as forfeit
+          const winner = isWhiteTurn ? "black" : "white";
+          return this.endGame(winner, "player_exception", onEvent, {
+            faultPlayer: faultColor,
+            failureClass: "player_exception",
+            errorMessage: `${activePlayer.name} returned null/undefined from chooseMove (forfeit)`,
+          }, peaks);
+        }
+        choice = rawChoice;
       } catch (err) {
         const msg = (err as Error)?.message ?? String(err);
         const isOOM = msg.includes("OutOfMemory") || msg.includes("out of memory") || msg.includes("memory access out of bounds") || err instanceof RangeError;
@@ -331,10 +341,6 @@ export class QCMatchRunner {
       if (checkWin) {
         const winResult = engine.checkWinCondition();
         if (winResult) {
-          const gd = engine.getGameData();
-          console.warn(`[QCMatchRunner] Win detected: ${winResult} after ply ${gd.board.ply}. Move: ${result.moveRecord.moveString}`);
-          console.warn(`[QCMatchRunner] Pieces:`, gd.board.pieces.join(""));
-          console.warn(`[QCMatchRunner] Probs:`, gd.board.probabilities.map(p => p.toFixed(2)).join(","));
           const winner = winResult === "white_win" ? "white" : "black";
           return this.endGame(winner, "checkmate", onEvent, undefined, peaks);
         }

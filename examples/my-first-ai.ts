@@ -71,8 +71,7 @@ const materialAI: QCPlayer = {
             bestChoice = choice;
           }
 
-          // Undo the move (required for do/undo explorer)
-          (explorer as any).undo();
+          explorer.undo();
         }
       } else {
         // No explorer — just pick captures (high victim value)

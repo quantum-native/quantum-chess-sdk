@@ -134,7 +134,7 @@ export class StackExplorer implements QCExplorer {
       gameData: gd,
       sideToMove: gd.board.ply % 2 === 0 ? "white" : "black",
       legalMoves: this._cachedLegalMoves,
-      moveHistory: [],
+      moveHistory: this.engine.getMoveHistory(),
       quantumEnabled: this.rules.quantumEnabled,
       rules: this.rules
     };
@@ -161,14 +161,63 @@ export class StackExplorer implements QCExplorer {
     };
   }
 
-  sample(_count: number): QCSample[] { return []; }
+  /**
+   * Collapse the current quantum state into N classical board snapshots.
+   * Uses the joint probability distribution from QuantumForge to preserve
+   * entanglement correlations (e.g., a split piece appears on exactly one
+   * of its two squares, never both).
+   */
+  sample(count: number): QCSample[] {
+    const gd = this.engine.getGameData();
+    const adapter = (this.engine as any).quantum;
 
-  fork(count: number = 2): QCExplorer[] {
-    const forks: QCExplorer[] = [];
-    for (let i = 0; i < count; i++) {
-      forks.push(new StackExplorer(this.engine, this.rules, this.depth));
+    // Collect squares with quantum properties (superposed)
+    const quantumSquares: number[] = [];
+    const handles: unknown[] = [];
+    if (adapter?.squareProps) {
+      for (const [sq, handle] of adapter.squareProps as Map<number, unknown>) {
+        quantumSquares.push(sq);
+        handles.push(handle);
+      }
     }
-    return forks;
+
+    // If no quantum state, return the classical board
+    if (handles.length === 0) {
+      return Array.from({ length: count }, () => ({ pieces: [...gd.board.pieces], weight: 1 }));
+    }
+
+    // Get the joint probability distribution over all quantum squares
+    const joint = adapter.port.probabilities(handles) as Array<{ probability: number; qudit_values: number[] }>;
+
+    // Build cumulative distribution for weighted random sampling
+    const cdf: number[] = [];
+    let cumulative = 0;
+    for (const entry of joint) {
+      cumulative += entry.probability;
+      cdf.push(cumulative);
+    }
+
+    const samples: QCSample[] = [];
+    for (let i = 0; i < count; i++) {
+      const pieces = [...gd.board.pieces];
+
+      // Pick an outcome from the joint distribution
+      const r = Math.random() * cumulative;
+      let outcomeIdx = 0;
+      for (let j = 0; j < cdf.length; j++) {
+        if (r <= cdf[j]) { outcomeIdx = j; break; }
+      }
+      const outcome = joint[outcomeIdx].qudit_values;
+
+      // Apply: value 1 = piece present, value 0 = piece absent
+      for (let k = 0; k < quantumSquares.length; k++) {
+        if (outcome[k] === 0) pieces[quantumSquares[k]] = ".";
+      }
+
+      // Classical squares stay as-is
+      samples.push({ pieces, weight: 1 });
+    }
+    return samples;
   }
 
   /**

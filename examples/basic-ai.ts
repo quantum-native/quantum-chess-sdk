@@ -19,8 +19,10 @@ async function main() {
   console.log("Starting game: My AI (white) vs Random (black)");
 
   const result = await runner.playMatch(myAI, random, {
-    onMove(ply, color, moveString) {
-      console.log(`  ply ${ply} (${color}): ${moveString}`);
+    onEvent(event) {
+      if (event.type === "move") {
+        console.log(`  ply ${event.ply} (${event.color}): ${event.moveRecord.moveString}`);
+      }
     },
   });
 

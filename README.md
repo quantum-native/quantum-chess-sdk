@@ -49,10 +49,12 @@ You return one of:
 
 ## Explorer (Lookahead)
 
-The `explorer` lets you try moves without affecting the real game:
+The `explorer` lets you try moves without affecting the real game. Apply a move, evaluate, then undo to try the next one:
 
 ```typescript
 async chooseMove(view, explorer, clock) {
+  if (!explorer) return { type: "standard", from: view.legalMoves.standard[0].from, to: view.legalMoves.standard[0].to };
+
   let bestMove = view.legalMoves.standard[0];
   let bestScore = -Infinity;
 
@@ -60,12 +62,13 @@ async chooseMove(view, explorer, clock) {
     const choice = { type: "standard" as const, from: move.from, to: move.to };
     const result = explorer.apply(choice);
 
-    if (result.success) {
-      const score = result.explorer.evaluate().score;
+    if (result.success && !result.measured) {
+      const score = explorer.evaluate().score;
       if (score > bestScore) {
         bestScore = score;
         bestMove = move;
       }
+      explorer.undo();
     }
   }
 
@@ -75,22 +78,30 @@ async chooseMove(view, explorer, clock) {
 
 ### Explorer Methods
 
-- **`apply(choice, opts?)`** -- play a move, get resulting state. Chain: `explorer.apply(m1).explorer.apply(m2)`
-- **`fork(n)`** -- create N independent copies for parallel search
+- **`apply(choice, opts?)`** -- try a move, returns `{ success, measured, measurementPassProbability }`
+- **`undo()`** -- undo the last apply, restoring the previous position
 - **`evaluate()`** -- material + probability score (positive = white advantage)
-- **`sample(n)`** -- collapse quantum state into N classical boards (for Monte Carlo)
-- **`view`** -- current game state at this node
+- **`view`** -- current game state at this node (pieces, probabilities, legal moves)
 
 ### Handling Measurements
 
-Quantum moves can trigger measurements with probabilistic outcomes. Force the result for deterministic search:
+Some moves trigger quantum measurements with probabilistic outcomes. When `result.measured` is true, branch on both outcomes:
 
 ```typescript
-const pass = explorer.apply(move, { forceMeasurement: "pass" });
-const fail = explorer.apply(move, { forceMeasurement: "fail" });
-const p = pass.measurementPassProbability ?? 0.5;
-const expectedScore = p * pass.explorer.evaluate().score
-                    + (1 - p) * fail.explorer.evaluate().score;
+const result = explorer.apply(choice);
+if (result.measured) {
+  const p = result.measurementPassProbability ?? 0.5;
+
+  const pass = explorer.apply(choice, { forceMeasurement: "pass" });
+  const passScore = explorer.evaluate().score;
+  explorer.undo();
+
+  const fail = explorer.apply(choice, { forceMeasurement: "fail" });
+  const failScore = explorer.evaluate().score;
+  explorer.undo();
+
+  const expected = p * passScore + (1 - p) * failScore;
+}
 ```
 
 ## Playing Against Your AI
@@ -169,11 +180,18 @@ For heavy computation without blocking the UI:
 ```typescript
 // worker.js
 self.onmessage = (e) => {
-  const { view, clock } = e.data;
-  const move = view.legalMoves.standard[0];
-  self.postMessage({ type: "standard", from: move.from, to: move.to });
+  const { type, view, clock } = e.data;
+  if (type === "chooseMove") {
+    const move = view.legalMoves.standard[0];
+    self.postMessage({ type: "standard", from: move.from, to: move.to });
+  }
 };
 ```
+
+**Message format:**
+
+- Main thread sends: `{ type: "chooseMove", view: QCEngineView, clock: QCClock | null }`
+- Worker responds with: `QCMoveChoice` via `postMessage` (e.g. `{ type: "standard", from, to }`)
 
 ### WebSocket
 
@@ -183,29 +201,12 @@ For persistent connections and pondering:
 const ai = await loadCustomAI({ type: "websocket", url: "ws://localhost:8081", name: "MyWSAI" });
 ```
 
-## Tournaments
+**Message format:**
 
-Run AI tournaments programmatically:
+- Client sends: `{ type: "chooseMove", requestId: number, view: QCEngineView, clock: QCClock | null }`
+- Server responds: `{ requestId: number, ...QCMoveChoice }`
 
-```typescript
-import { QCTournamentRunner } from "@quantum-native/quantum-chess-sdk";
-
-const tournament = new QCTournamentRunner({
-  players: [bot1, bot2, bot3, bot4],
-  format: "round_robin",  // or "swiss"
-  rules: { quantumEnabled: true, allowSplitMerge: true, /* ... */ },
-  timeControl: { initialSeconds: 300, incrementSeconds: 5, maxSeconds: 600 },
-  gamesPerMatch: 2  // one as white, one as black
-});
-
-const result = await tournament.run(adapterFactory, (event) => {
-  if (event.type === "match_end") {
-    console.log(`${event.result.white} vs ${event.result.black}: ${event.result.result.winner}`);
-  }
-});
-
-console.log("Final standings:", result.standings);
-```
+The `requestId` ties the response to the request. Include the full `QCMoveChoice` fields in the response object alongside `requestId`.
 
 ## Learn Quantum Chess
 

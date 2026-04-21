@@ -117,6 +117,9 @@ export class QCExplorerImpl implements QCExplorer {
     };
   }
 
+  /** No-op — QCExplorerImpl creates new instances per apply, not do/undo. */
+  undo(): void {}
+
   /**
    * Fork this explorer into N independent copies.
    * Each copy shares the same snapshot and can diverge independently.
