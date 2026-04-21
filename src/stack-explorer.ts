@@ -134,7 +134,7 @@ export class StackExplorer implements QCExplorer {
       gameData: gd,
       sideToMove: gd.board.ply % 2 === 0 ? "white" : "black",
       legalMoves: this._cachedLegalMoves,
-      moveHistory: this.engine.getMoveHistory(),
+      moveHistory: [],
       quantumEnabled: this.rules.quantumEnabled,
       rules: this.rules
     };
@@ -214,10 +214,17 @@ export class StackExplorer implements QCExplorer {
         if (outcome[k] === 0) pieces[quantumSquares[k]] = ".";
       }
 
-      // Classical squares stay as-is
       samples.push({ pieces, weight: 1 });
     }
     return samples;
+  }
+
+  fork(count: number = 2): QCExplorer[] {
+    const forks: QCExplorer[] = [];
+    for (let i = 0; i < count; i++) {
+      forks.push(new StackExplorer(this.engine, this.rules, this.depth));
+    }
+    return forks;
   }
 
   /**
@@ -368,8 +375,15 @@ export class StackExplorer implements QCExplorer {
     const to = choice.to;
     const srcPiece = gd.board.pieces[from];
 
+    // Promotion: replace pawn with promoted piece
+    let destPiece = srcPiece;
+    if (choice.promotion && srcPiece.toLowerCase() === "p") {
+      const isWhite = srcPiece === "P";
+      destPiece = isWhite ? choice.promotion.toUpperCase() : choice.promotion.toLowerCase();
+    }
+
     gd.board.pieces[from] = ".";
-    gd.board.pieces[to] = srcPiece;
+    gd.board.pieces[to] = destPiece;
     gd.board.probabilities[from] = 0;
     gd.board.probabilities[to] = 1;
 
@@ -413,7 +427,8 @@ export class StackExplorer implements QCExplorer {
     clearCastleFor(from);
     clearCastleFor(to);
 
-    gd.position.history = [...gd.position.history, `${indexToSquareName(from)}-${indexToSquareName(to)}`];
+    const promoSuffix = choice.promotion ? choice.promotion.toUpperCase() : "";
+    gd.position.history = [...gd.position.history, `${indexToSquareName(from)}-${indexToSquareName(to)}${promoSuffix}`];
   }
 }
 

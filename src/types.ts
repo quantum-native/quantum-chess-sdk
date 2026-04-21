@@ -145,24 +145,18 @@ export type QCMoveChoice =
  * Search explorer for AI lookahead.
  *
  * Use apply() to try a move, examine the resulting position via view/evaluate,
- * then call undo() to restore and try the next move. This is the standard
- * pattern for minimax/alpha-beta search.
+ * then call undo() to restore and try the next move.
  */
 export interface QCExplorer {
-  /** Apply a move. Returns the resulting state. Call undo() after to restore. */
   apply(
     choice: QCMoveChoice,
     options?: { forceMeasurement?: "pass" | "fail" }
   ): QCExplorerResult;
-  /** Undo the last apply(), restoring the previous position. */
   undo(): void;
-  /** Current game state at this node. */
+  fork(count?: number): QCExplorer[];
   readonly view: QCEngineView;
-  /** Search depth from root. */
   readonly depth: number;
-  /** Quick material + position evaluation (positive = white advantage). */
   evaluate(): QCPositionEval;
-  /** Collapse quantum state into N classical board snapshots (for Monte Carlo evaluation). */
   sample(count: number): QCSample[];
 }
 
@@ -212,9 +206,6 @@ export interface QCPlayer {
    * For human players, this promise resolves when the player interacts with the board.
    * For AI players, this promise resolves when the algorithm produces a move.
    * For remote players, this promise resolves when the move arrives over the network.
-   *
-   * Note: explorer may be null for human players or when no quantum adapter is
-   * available. Fall back to choosing from view.legalMoves directly.
    */
   chooseMove(
     view: QCEngineView,
