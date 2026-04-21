@@ -18,7 +18,9 @@ echo "Building..."
 npm run build
 
 echo "Publishing @quantum-native/quantum-chess-sdk to npm..."
-npm publish --access public --registry https://registry.npmjs.org //registry.npmjs.org/:_authToken=${NPM_TOKEN}
+echo "//registry.npmjs.org/:_authToken=${NPM_TOKEN}" > .npmrc.publish
+npm publish --access public --registry https://registry.npmjs.org --userconfig .npmrc.publish
+rm -f .npmrc.publish
 
 echo "Done! Now set up trusted publishing:"
 echo "  1. Go to https://www.npmjs.com/package/@quantum-native/quantum-chess-sdk/access"
