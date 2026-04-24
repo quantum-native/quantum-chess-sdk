@@ -35,6 +35,10 @@
   "scripts": {
     "build": "tsup src/index.ts --format esm --dts --outDir dist --clean",
     "typecheck": "tsc --noEmit",
+    "test": "tsx test/sample.test.ts && tsx test/parity.test.ts && tsx test/deep-undo.test.ts",
+    "test:sample": "tsx test/sample.test.ts",
+    "test:parity": "tsx test/parity.test.ts",
+    "test:undo": "tsx test/deep-undo.test.ts",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
@@ -42,6 +46,7 @@
   },
   "devDependencies": {
     "tsup": "^8.5.1",
+    "tsx": "^4.21.0",
     "typescript": "^5.0.0"
   }
 }
