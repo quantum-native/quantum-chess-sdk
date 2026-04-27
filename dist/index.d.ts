@@ -1486,6 +1486,31 @@ declare class HttpPlayerAdapter implements QCPlayer {
 }
 
 /**
+ * Loads a QCPlayer module inside a dedicated browser worker.
+ *
+ * This is the default browser execution model for custom module AIs: the AI's
+ * search runs off the UI thread and receives a worker-local QCExplorer backed
+ * by its own QuantumForge port.
+ */
+declare class ModuleWorkerPlayer implements QCPlayer {
+    private readonly url;
+    readonly control: "ai";
+    name: string;
+    author?: string;
+    description?: string;
+    quantumEnabled?: boolean;
+    private worker;
+    private initialized;
+    constructor(url: string, fallbackName?: string);
+    initialize(): Promise<void>;
+    chooseMove(view: QCEngineView, _explorer: QCExplorer | null, clock: QCClock | null): Promise<QCMoveChoice>;
+    onOpponentMove(move: QCMoveRecord, view: QCEngineView): void;
+    onGameOver(result: QCGameResult): void;
+    dispose(): void;
+    private request;
+}
+
+/**
  * AI player that runs in a Web Worker.
  *
  * The worker must listen for messages of the form:
@@ -1681,6 +1706,8 @@ declare class MatchBridge {
 type AISource = {
     type: "module";
     url: string;
+    name?: string;
+    runInWorker?: boolean;
 } | {
     type: "http";
     url: string;
@@ -1697,19 +1724,22 @@ type AISource = {
     name: string;
 };
 /**
- * Validate that an object has the required QCPlayer shape.
- * Returns an error message if invalid, null if valid.
- */
-declare function validatePlayerShape(player: unknown): string | null;
-/**
  * Load a custom AI player from the specified source.
  *
- * - `module`: Dynamic import of an ES module that default-exports a QCPlayer.
+ * - `module`: Loads an ES module that default-exports a QCPlayer. In browsers,
+ *   this runs in a dedicated Web Worker by default so AI search does not block
+ *   timers or UI interaction.
  * - `http`: Creates an HttpPlayerAdapter that POSTs to the given URL.
  * - `websocket`: Creates a WebSocketPlayerAdapter with persistent connection.
  * - `worker`: Creates a WorkerPlayerAdapter running in a Web Worker.
  */
 declare function loadCustomAI(source: AISource): Promise<QCPlayer>;
+
+/**
+ * Validate that an object has the required QCPlayer shape.
+ * Returns an error message if invalid, null if valid.
+ */
+declare function validatePlayerShape(player: unknown): string | null;
 
 /**
  * Reusable QuantumForge port that tracks all created properties so they
@@ -1836,4 +1866,4 @@ declare function swissPairing(standings: QCStanding[], playerNames: string[], pr
 /** Number of rounds for Swiss format given player count. */
 declare function swissRoundCount(playerCount: number): number;
 
-export { type AISource, BOARD_SQUARES, CLASSICAL_START_FEN, type DisposablePort, type EntanglementVisualLink, FIFTY_MOVE_PLY_LIMIT, type GameConnection, type GameModeConfig, type GameModeConfigOverrides, type GameModeId, type GameRunner, HttpPlayerAdapter, type LegalTargetOptions, type LocalHumanBoardUI, LocalHumanPlayer, MatchBridge, type MatchBridgeCallbacks, type MatchmakingType, type MeasurementImpactVisual, MoveCode, type MoveRecordLike, MoveType, MoveVariant, type ObjectiveType, type OperationStep, PARITY_MATRIX, PROBABILITY_EPSILON, type ParityFeatureBucket, type ParityFeatureBucketId, type PgnExportOptions, type PgnGame, type PgnHeaders, type PgnMoveEntry, type PgnResult, type PieceColor, type PlayMatchOptions, type PlayerConfig, type PlayerControl, type PlayerSide, type PoolingPort, type ProbabilityRingVisual, type PureSDKAIOptions, PureSDKAdapter, type QCClock, QCEngine, type QCEngineView, type QCExplorer, type QCExplorerResult, type QCGameResult, type QCLegalMoveSet, type QCMatchClockEvent, type QCMatchConfig, type QCMatchErrorEvent, type QCMatchEvent, type QCMatchGameOverEvent, type QCMatchMeasurementEvent, type QCMatchMoveEvent, QCMatchRunner, type QCMergeOption, type QCMoveChoice, type QCMoveExecutionResult, type QCMoveOption, type QCMoveOverride, type QCMoveRecord, type QCPlayer, type QCPositionEval, type QCSample, type QCServerAuthority, type QCSplitOption, type QCStanding, type QCTournamentConfig, type QCTournamentEvent, type QCTournamentMatchResult, type QCTournamentResult, QCTournamentRunner, type QChessBoardState, type QChessGameData, type QChessMove, type QChessPosition, type QuantumAdapterFactory, QuantumChessQuantumAdapter, type QuantumForgeLikeModule, type QuantumHandle, type QuantumMoveResult, type QuantumPredicate, type QuantumPrimitivePort, type QuantumProbability, type QuantumRelationshipProvider, type QuantumVisualAdapter, type QuantumVisualCapabilities, type QuantumVisualSnapshot, type QuantumVisualSnapshotOptions, RandomPlayer, type RecordedOp, type ReducedDensityMatrixEntry, type RelativePhaseVisualLink, RemoteHumanPlayer, type RulesConfig, type SquareVisualTelemetry, StackExplorer, type StartingPositionType, type TimeControlConfig, type VariantDefinition, WebSocketPlayerAdapter, WorkerPlayerAdapter, applyClassicalShadowMove, applyStandardMove, assertValidGameModeConfig, buildLegalMoveSet, buildOperationPlan, buildPgn, buildStandardMoveFromSquares, classicalBoardToFen, clearCastlingRightsForSquare, clearCastlingRightsFromMove, clearSandboxBoard, cloneGameData, computeMergeTargets, computeStandings, createClassicalStartGameData, createEmptyGameData, createGameModeConfig, createGameRunner, createIsolatedPort, createPoolingPort, createQuantumForgePort, createQuantumVisualSnapshot, createStackExplorer, detectKingCapture, exportPgn, fenToGameData, formatMoveString, gameDataToPositionString, getFile, getGameModePreset, getLegalTargets, getMergeTargets, getPieceColor, getRank, getSplitTargets, indexToSquareName, isBlackPiece, isCurrentTurnPiece, isEnemyPiece, isFiftyMoveDraw, isLegalStandardMove, isOnBoard, isWhitePiece, listGameModePresets, loadCustomAI, moveRecordsToPgnEntries, parseMoveString, parsePgn, pgnToMoveStrings, pieceForMoveSource, placeSandboxPiece, promotedOrSourcePiece, prunePiecesByProbabilities, relocateSandboxPiece, remapPieceSymbol, roundRobinPairings, selectPiece, squareNameToIndex, swissPairing, swissRoundCount, updateFiftyMoveCounter, validateGameModeConfig, validatePlayerShape };
+export { type AISource, BOARD_SQUARES, CLASSICAL_START_FEN, type DisposablePort, type EntanglementVisualLink, FIFTY_MOVE_PLY_LIMIT, type GameConnection, type GameModeConfig, type GameModeConfigOverrides, type GameModeId, type GameRunner, HttpPlayerAdapter, type LegalTargetOptions, type LocalHumanBoardUI, LocalHumanPlayer, MatchBridge, type MatchBridgeCallbacks, type MatchmakingType, type MeasurementImpactVisual, ModuleWorkerPlayer, MoveCode, type MoveRecordLike, MoveType, MoveVariant, type ObjectiveType, type OperationStep, PARITY_MATRIX, PROBABILITY_EPSILON, type ParityFeatureBucket, type ParityFeatureBucketId, type PgnExportOptions, type PgnGame, type PgnHeaders, type PgnMoveEntry, type PgnResult, type PieceColor, type PlayMatchOptions, type PlayerConfig, type PlayerControl, type PlayerSide, type PoolingPort, type ProbabilityRingVisual, type PureSDKAIOptions, PureSDKAdapter, type QCClock, QCEngine, type QCEngineView, type QCExplorer, type QCExplorerResult, type QCGameResult, type QCLegalMoveSet, type QCMatchClockEvent, type QCMatchConfig, type QCMatchErrorEvent, type QCMatchEvent, type QCMatchGameOverEvent, type QCMatchMeasurementEvent, type QCMatchMoveEvent, QCMatchRunner, type QCMergeOption, type QCMoveChoice, type QCMoveExecutionResult, type QCMoveOption, type QCMoveOverride, type QCMoveRecord, type QCPlayer, type QCPositionEval, type QCSample, type QCServerAuthority, type QCSplitOption, type QCStanding, type QCTournamentConfig, type QCTournamentEvent, type QCTournamentMatchResult, type QCTournamentResult, QCTournamentRunner, type QChessBoardState, type QChessGameData, type QChessMove, type QChessPosition, type QuantumAdapterFactory, QuantumChessQuantumAdapter, type QuantumForgeLikeModule, type QuantumHandle, type QuantumMoveResult, type QuantumPredicate, type QuantumPrimitivePort, type QuantumProbability, type QuantumRelationshipProvider, type QuantumVisualAdapter, type QuantumVisualCapabilities, type QuantumVisualSnapshot, type QuantumVisualSnapshotOptions, RandomPlayer, type RecordedOp, type ReducedDensityMatrixEntry, type RelativePhaseVisualLink, RemoteHumanPlayer, type RulesConfig, type SquareVisualTelemetry, StackExplorer, type StartingPositionType, type TimeControlConfig, type VariantDefinition, WebSocketPlayerAdapter, WorkerPlayerAdapter, applyClassicalShadowMove, applyStandardMove, assertValidGameModeConfig, buildLegalMoveSet, buildOperationPlan, buildPgn, buildStandardMoveFromSquares, classicalBoardToFen, clearCastlingRightsForSquare, clearCastlingRightsFromMove, clearSandboxBoard, cloneGameData, computeMergeTargets, computeStandings, createClassicalStartGameData, createEmptyGameData, createGameModeConfig, createGameRunner, createIsolatedPort, createPoolingPort, createQuantumForgePort, createQuantumVisualSnapshot, createStackExplorer, detectKingCapture, exportPgn, fenToGameData, formatMoveString, gameDataToPositionString, getFile, getGameModePreset, getLegalTargets, getMergeTargets, getPieceColor, getRank, getSplitTargets, indexToSquareName, isBlackPiece, isCurrentTurnPiece, isEnemyPiece, isFiftyMoveDraw, isLegalStandardMove, isOnBoard, isWhitePiece, listGameModePresets, loadCustomAI, moveRecordsToPgnEntries, parseMoveString, parsePgn, pgnToMoveStrings, pieceForMoveSource, placeSandboxPiece, promotedOrSourcePiece, prunePiecesByProbabilities, relocateSandboxPiece, remapPieceSymbol, roundRobinPairings, selectPiece, squareNameToIndex, swissPairing, swissRoundCount, updateFiftyMoveCounter, validateGameModeConfig, validatePlayerShape };

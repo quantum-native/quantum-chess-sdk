@@ -1,6 +1,6 @@
 {
   "name": "@quantum-native/quantum-chess-sdk",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "type": "module",
   "license": "MIT",
   "description": "Player SDK for building Quantum Chess AIs — match runner, explorer, tournament system, reference AI",
@@ -33,7 +33,7 @@
     "LICENSE"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --outDir dist --clean",
+    "build": "tsup src/index.ts src/adapters/module-worker-runtime.ts --format esm --dts --outDir dist --clean",
     "typecheck": "tsc --noEmit",
     "test": "tsx test/sample.test.ts && tsx test/parity.test.ts && tsx test/deep-undo.test.ts",
     "test:sample": "tsx test/sample.test.ts",

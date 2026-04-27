@@ -54,6 +54,7 @@ export { PureSDKAdapter } from "./adapters/pure-sdk-ai";
 export type { PureSDKAIOptions } from "./adapters/pure-sdk-ai";
 export { RandomPlayer } from "./adapters/random-player";
 export { HttpPlayerAdapter } from "./adapters/http-player";
+export { ModuleWorkerPlayer } from "./adapters/module-worker-player";
 export { WorkerPlayerAdapter } from "./adapters/worker-player";
 export { WebSocketPlayerAdapter } from "./adapters/websocket-player";
 export { LocalHumanPlayer } from "./adapters/local-human";
@@ -66,7 +67,8 @@ export { MatchBridge } from "./adapters/match-bridge";
 export type { MatchBridgeCallbacks } from "./adapters/match-bridge";
 
 // AI loader
-export { loadCustomAI, validatePlayerShape } from "./ai-loader";
+export { loadCustomAI } from "./ai-loader";
+export { validatePlayerShape } from "./ai-validation";
 export type { AISource } from "./ai-loader";
 
 // Pooling port (for advanced users managing QuantumForge lifecycle)

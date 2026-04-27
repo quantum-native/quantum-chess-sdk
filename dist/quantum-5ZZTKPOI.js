@@ -4,7 +4,7 @@ import {
   createIsolatedPort,
   createQuantumForgePort,
   createQuantumVisualSnapshot
-} from "./chunk-PGNN6OQM.js";
+} from "./chunk-HYPD7VU7.js";
 export {
   QuantumChessQuantumAdapter,
   buildOperationPlan,

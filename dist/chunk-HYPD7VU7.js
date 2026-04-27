@@ -1694,6 +1694,9 @@ var QuantumChessQuantumAdapter = class {
     }
   }
   constructor(port, options = {}) {
+    if (!port) {
+      throw new Error("QuantumChessQuantumAdapter requires a QuantumPrimitivePort. Use createQuantumForgePort(...) when constructing an SDK engine.");
+    }
     this.port = port;
     this.dimension = options.dimension ?? 2;
   }
