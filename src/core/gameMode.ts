@@ -1,5 +1,6 @@
 export type GameModeId =
   | "sandbox"
+  | "local"
   | "vs_ai"
   | "ai_vs_ai"
   | "online_ranked"
@@ -94,6 +95,18 @@ const PRESET_MAP: Record<GameModeId, GameModeConfig> = {
     rules: { ...BASE_RULES },
     matchmaking: "none",
     startingPosition: "classical"
+  },
+  local: {
+    modeId: "local",
+    label: "Local Game",
+    players: [
+      { side: "white", control: "human_local" },
+      { side: "black", control: "ai" }
+    ],
+    rules: { ...BASE_RULES },
+    matchmaking: "none",
+    startingPosition: "classical",
+    timeControl: { initialSeconds: 900, incrementSeconds: 0, maxSeconds: 900 }
   },
   vs_ai: {
     modeId: "vs_ai",
@@ -255,6 +268,10 @@ export function validateGameModeConfig(config: GameModeConfig): string[] {
 
   if (config.modeId === "vs_ai" && !config.players.some((player) => player.control === "ai")) {
     errors.push("vs_ai mode requires an AI player slot.");
+  }
+
+  if (config.modeId === "local" && config.players.some((player) => player.control === "human_remote")) {
+    errors.push("local mode cannot include remote players.");
   }
 
   if (config.modeId === "ai_vs_ai" && !config.players.every((player) => player.control === "ai")) {

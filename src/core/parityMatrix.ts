@@ -22,6 +22,7 @@ export interface ParityFeatureBucket {
 
 const ALL_GAME_MODES: readonly GameModeId[] = [
   "sandbox",
+  "local",
   "vs_ai",
   "online_ranked",
   "online_unranked",
@@ -34,9 +35,9 @@ const ALL_GAME_MODES: readonly GameModeId[] = [
 export const PARITY_MATRIX: readonly ParityFeatureBucket[] = [
   { bucketId: "sandbox", label: "Sandbox", requiredModes: ["sandbox"] },
   { bucketId: "vs_ai", label: "VS AI", requiredModes: ["vs_ai"] },
-  { bucketId: "local_multiplayer", label: "Local Multiplayer", requiredModes: ["sandbox", "analysis"] },
+  { bucketId: "local_multiplayer", label: "Local Multiplayer", requiredModes: ["local", "sandbox", "analysis"] },
   { bucketId: "online_multiplayer", label: "Online Multiplayer", requiredModes: ["online_ranked", "online_unranked", "spectate"] },
-  { bucketId: "time_controls", label: "Time Controls", requiredModes: ["vs_ai", "online_ranked", "online_unranked"] },
+  { bucketId: "time_controls", label: "Time Controls", requiredModes: ["local", "vs_ai", "online_ranked", "online_unranked"] },
   { bucketId: "puzzles_tutorials", label: "Puzzles / Tutorials", requiredModes: ["puzzle", "tutorial"] },
   { bucketId: "spectate", label: "Spectate", requiredModes: ["spectate"] },
   { bucketId: "analysis", label: "Analysis", requiredModes: ["analysis"] },

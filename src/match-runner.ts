@@ -1,5 +1,5 @@
 import { cloneGameData, createClassicalStartGameData, fenToGameData, CLASSICAL_START_FEN, type QChessGameData } from "./core";
-import type { QuantumChessQuantumAdapter } from "./quantum";
+import type { QuantumChessAdapter } from "./quantum";
 import { QCEngine } from "./engine";
 import { createExplorer, type QuantumAdapterFactory } from "./explorer";
 import { createStackExplorer } from "./stack-explorer";
@@ -48,7 +48,7 @@ export class QCMatchRunner {
    * Run the match to completion. Initializes and runs the game loop.
    */
   async run(
-    quantum: QuantumChessQuantumAdapter,
+    quantum: QuantumChessAdapter,
     onEvent?: QCMatchEventHandler,
     adapterFactory?: QuantumAdapterFactory
   ): Promise<QCGameResult> {
@@ -61,7 +61,7 @@ export class QCMatchRunner {
    * Called by MatchBridge before the game loop so the initial board state is
    * available immediately (no await needed for display updates).
    */
-  initialize(quantum: QuantumChessQuantumAdapter, config: QCMatchConfig): void {
+  initialize(quantum: QuantumChessAdapter, config: QCMatchConfig): void {
     const engine = new QCEngine(quantum, config.rules);
     this.engine = engine;
 
@@ -166,17 +166,7 @@ export class QCMatchRunner {
       // Ask the active player for their move
       let choice: QCMoveChoice;
       try {
-        const rawChoice = await activePlayer.chooseMove(view, explorer, clock);
-        if (!rawChoice) {
-          // Treat null/undefined as forfeit
-          const winner = isWhiteTurn ? "black" : "white";
-          return this.endGame(winner, "player_exception", onEvent, {
-            faultPlayer: faultColor,
-            failureClass: "player_exception",
-            errorMessage: `${activePlayer.name} returned null/undefined from chooseMove (forfeit)`,
-          }, peaks);
-        }
-        choice = rawChoice;
+        choice = await activePlayer.chooseMove(view, explorer, clock);
       } catch (err) {
         const msg = (err as Error)?.message ?? String(err);
         const isOOM = msg.includes("OutOfMemory") || msg.includes("out of memory") || msg.includes("memory access out of bounds") || err instanceof RangeError;
@@ -241,6 +231,20 @@ export class QCMatchRunner {
         }, peaks);
       }
 
+      // Server authority: resolve the canonical measurement outcome BEFORE
+      // executing locally. This keeps the mover's quantum state in lockstep
+      // with the server's RNG — without this, the mover commits a local
+      // outcome and the opponent commits the server's outcome, silently
+      // forking their simulations on every measurement.
+      if (config.serverAuthority && activePlayer.control !== "human_remote") {
+        const resolved = await config.serverAuthority.resolveServerOutcome(choice, ply);
+        if (!resolved) {
+          onEvent?.({ type: "error", ply, message: "Server rejected move" });
+          continue;
+        }
+        choice = resolved;
+      }
+
       // Apply server-forced measurement if the remote player provided one
       if (choice._forceMeasurement) {
         engine.setForceMeasurement(choice._forceMeasurement);
@@ -296,18 +300,6 @@ export class QCMatchRunner {
         }, peaks);
       }
 
-      // Server authority hook
-      if (config.serverAuthority && activePlayer.control !== "human_remote") {
-        const override = await config.serverAuthority.onMoveExecuted(
-          result.moveRecord.moveString,
-          ply,
-          result
-        );
-        if (override && override.forceMeasurement) {
-          // Server overrides handled via _forceMeasurement on remote moves
-        }
-      }
-
       // Capture quantum health after move
       const health = getQuantumHealth();
       updatePeaks(health, ply);
@@ -341,6 +333,10 @@ export class QCMatchRunner {
       if (checkWin) {
         const winResult = engine.checkWinCondition();
         if (winResult) {
+          const gd = engine.getGameData();
+          console.warn(`[QCMatchRunner] Win detected: ${winResult} after ply ${gd.board.ply}. Move: ${result.moveRecord.moveString}`);
+          console.warn(`[QCMatchRunner] Pieces:`, gd.board.pieces.join(""));
+          console.warn(`[QCMatchRunner] Probs:`, gd.board.probabilities.map(p => p.toFixed(2)).join(","));
           const winner = winResult === "white_win" ? "white" : "black";
           return this.endGame(winner, "checkmate", onEvent, undefined, peaks);
         }

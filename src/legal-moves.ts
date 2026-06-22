@@ -58,15 +58,26 @@ function buildStandardMoves(
 
     for (const target of targets) {
       const parsed = buildStandardMoveFromSquares(source, target, gameData);
+      const sourceProbability = probabilities[source];
+      const targetProbability = probabilities[target];
+      const moveMayMeasure =
+        parsed.variant === MoveVariant.Excluded ||
+        parsed.variant === MoveVariant.Capture;
+      const willMeasure =
+        moveMayMeasure &&
+        (
+          sourceProbability > EPSILON && sourceProbability < 1 - EPSILON ||
+          targetProbability > EPSILON && targetProbability < 1 - EPSILON
+        );
 
       const move: QCMoveOption = {
         from: source,
         to: target,
         type: parsed.type,
         variant: parsed.variant,
-        willMeasure: parsed.variant === MoveVariant.Excluded || parsed.variant === MoveVariant.Capture,
+        willMeasure,
         piece,
-        notation: ""
+        notation: `${indexToSquareName(source)}-${indexToSquareName(target)}`
       };
 
       if (piece.toLowerCase() === "p") {

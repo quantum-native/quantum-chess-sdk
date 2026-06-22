@@ -19,7 +19,7 @@ import {
   type LegalTargetOptions,
   MoveVariant
 } from "./core";
-import type { QuantumChessQuantumAdapter, QuantumMoveResult, RecordedOp } from "./quantum";
+import type { QuantumChessAdapter, QuantumMoveResult } from "./quantum";
 import { buildLegalMoveSet } from "./legal-moves";
 import type {
   QCEngineView,
@@ -37,7 +37,7 @@ export type MeasurementForceMode = "random" | "m0" | "m1";
 
 function syncProbabilitiesFromQuantum(
   gameData: QChessGameData,
-  quantum: QuantumChessQuantumAdapter
+  quantum: QuantumChessAdapter
 ): void {
   for (let sq = 0; sq < 64; sq++) {
     gameData.board.probabilities[sq] = quantum.getExistenceProbability(sq);
@@ -69,14 +69,18 @@ function applyMeasurementForcing(move: QChessMove, mode: MeasurementForceMode): 
 interface EngineUndoEntry {
   gameData: QChessGameData;           // full gameData before the move
   moveHistoryLength: number;          // moveHistory.length before the move
-  adapterBookkeeping: ReturnType<QuantumChessQuantumAdapter["captureBookkeeping"]>;
-  /** Recorded quantum operations for reverse undo. */
-  recordedOps?: RecordedOp[];
+  // Opaque per-adapter snapshot returned by captureBookkeeping; the
+  // engine just stores it and passes it back to restoreBookkeeping
+  // verbatim. Legacy adapter returns a structural snap; WASM adapter
+  // returns a frame ID.
+  adapterBookkeeping: unknown;
+  /** Recorded quantum operations for reverse undo. Opaque per-adapter. */
+  recordedOps?: unknown;
 }
 
 export class QCEngine {
   private gameData: QChessGameData;
-  private readonly quantum: QuantumChessQuantumAdapter;
+  private readonly quantum: QuantumChessAdapter;
   private readonly rules: RulesConfig;
   private readonly moveHistory: QCMoveRecord[] = [];
   private forceMeasurement: MeasurementForceMode = "random";
@@ -88,7 +92,7 @@ export class QCEngine {
   /** The position used to initialize this engine (for replay-based undo). */
   private initPosition: QChessPosition | null = null;
 
-  constructor(quantum: QuantumChessQuantumAdapter, rules: RulesConfig) {
+  constructor(quantum: QuantumChessAdapter, rules: RulesConfig) {
     this.quantum = quantum;
     this.rules = rules;
     this.gameData = createClassicalStartGameData();
@@ -262,7 +266,7 @@ export class QCEngine {
   }
 
   /** Get the quantum adapter. */
-  getQuantum(): QuantumChessQuantumAdapter {
+  getQuantum(): QuantumChessAdapter {
     return this.quantum;
   }
 
@@ -363,10 +367,11 @@ export class QCEngine {
       undoEntry.recordedOps = recordedOps;
       this.undoStack.push(undoEntry);
     } else {
-      // Move failed — reverse any partial operations
-      if (recordedOps.length > 0) {
-        this.quantum.undoRecordedOps(recordedOps);
-      }
+      // Move failed — reverse any partial operations. We don't peek
+      // inside `recordedOps` (its shape is adapter-specific); the
+      // adapter's undoRecordedOps is responsible for handling the
+      // "nothing to undo" case as a no-op.
+      this.quantum.undoRecordedOps(recordedOps);
     }
     return result;
   }
@@ -380,8 +385,10 @@ export class QCEngine {
     const entry = this.undoStack.pop();
     if (!entry) return false;
 
-    // Reverse quantum operations (same simulation, no replay needed)
-    if (entry.recordedOps && entry.recordedOps.length > 0) {
+    // Reverse quantum operations (same simulation, no replay needed).
+    // We trust the adapter's undoRecordedOps to no-op when nothing
+    // needs undoing; the shape of entry.recordedOps is opaque to us.
+    if (entry.recordedOps !== undefined) {
       this.quantum.undoRecordedOps(entry.recordedOps);
     }
 

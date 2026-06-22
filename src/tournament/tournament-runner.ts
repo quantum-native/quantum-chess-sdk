@@ -1,4 +1,4 @@
-import type { QuantumChessQuantumAdapter } from "../quantum";
+import type { QuantumChessAdapter } from "../quantum";
 import { QCMatchRunner } from "../match-runner";
 import type { QuantumAdapterFactory } from "../explorer";
 import { computeStandings } from "./standings";

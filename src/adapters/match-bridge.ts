@@ -1,5 +1,5 @@
 import { type QChessGameData } from "../core";
-import type { QuantumChessQuantumAdapter } from "../quantum";
+import type { QuantumChessAdapter } from "../quantum";
 import type {
   QCPlayer,
   QCMatchConfig,
@@ -60,7 +60,7 @@ export class MatchBridge {
    * moves are played). This allows the caller to update the display immediately
    * without touching the quantum adapter directly.
    */
-  start(quantum: QuantumChessQuantumAdapter, adapterFactory?: QuantumAdapterFactory): QChessGameData | null {
+  start(quantum: QuantumChessAdapter, adapterFactory?: QuantumAdapterFactory): QChessGameData | null {
     this.runner = new QCMatchRunner(this.config);
 
     // Initialize synchronously so we can return the initial board state

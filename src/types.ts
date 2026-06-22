@@ -327,25 +327,24 @@ export interface QCMoveExecutionResult {
   error?: string;
 }
 
-/** Override from server-authoritative mode. */
-export interface QCMoveOverride {
-  /** Force this measurement outcome instead of the local result. */
-  forceMeasurement: boolean;
-  measurementOutcome: boolean;
-}
-
-/** Hook for server-authoritative games (online ranked). */
+/** Hook for server-authoritative online games (ranked + unranked). */
 export interface QCServerAuthority {
   /**
-   * Called after a local player's move is executed locally.
-   * Send the move to the server, receive canonical result.
-   * Return null to accept local result, or a MoveOverride to re-execute.
+   * Called BEFORE the local engine executes a local player's chosen move.
+   * Sends the move to the server, awaits the canonical result, and returns
+   * the choice annotated with the server's forced measurement outcome
+   * (or unchanged for non-measurement moves). The match runner then executes
+   * the move with that forced outcome so the mover's quantum state matches
+   * the server's.
+   *
+   * Returns null if the server rejected the move (wrong turn, ply mismatch,
+   * unparseable, timeout, etc.); the match runner treats this as illegal
+   * and re-prompts the player.
    */
-  onMoveExecuted(
-    moveString: string,
-    ply: number,
-    localResult: QCMoveExecutionResult
-  ): Promise<QCMoveOverride | null>;
+  resolveServerOutcome(
+    choice: QCMoveChoice,
+    ply: number
+  ): Promise<QCMoveChoice | null>;
 }
 
 export interface QCMatchConfig {

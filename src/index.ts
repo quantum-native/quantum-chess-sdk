@@ -24,7 +24,6 @@ export type {
   QCMatchErrorEvent,
   QCMatchClockEvent,
   QCMoveExecutionResult,
-  QCMoveOverride,
   QCServerAuthority,
   QCExplorer,
   QCExplorerResult,
@@ -66,14 +65,16 @@ export type { GameConnection } from "./adapters/remote-human";
 export { MatchBridge } from "./adapters/match-bridge";
 export type { MatchBridgeCallbacks } from "./adapters/match-bridge";
 
+
+// Node-only WASM adapters live behind the "/node" subpath so they don't
+// pull node:fs / node:worker_threads transitively into browser bundles.
+// Import them as:
+//   import { NodeXBoardAdapter } from "@quantum-native/quantum-chess-sdk/node";
+
 // AI loader
 export { loadCustomAI } from "./ai-loader";
 export { validatePlayerShape } from "./ai-validation";
 export type { AISource } from "./ai-loader";
-
-// Pooling port (for advanced users managing QuantumForge lifecycle)
-export { createPoolingPort } from "./pooling-port";
-export type { PoolingPort } from "./pooling-port";
 
 // Tournament
 export { QCTournamentRunner } from "./tournament/tournament-runner";

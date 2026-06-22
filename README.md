@@ -104,6 +104,54 @@ if (result.measured) {
 }
 ```
 
+## Standalone Engine (advanced)
+
+Most AIs only implement `chooseMove` and let the match runner own the engine.
+If you want to drive the engine yourself — for a position explorer, analysis
+tool, or test harness — construct the quantum adapter and `QCEngine` directly:
+
+```typescript
+import {
+  QCEngine,
+  QuantumChessQuantumAdapterWasm,
+  loadQCGameModule,
+  createStackExplorer,
+} from "@quantum-native/quantum-chess-sdk";
+
+// Load the quantum module once; reuse it for every adapter.
+const mod = await loadQCGameModule();
+const adapter = new QuantumChessQuantumAdapterWasm(mod);
+
+const rules = {
+  quantumEnabled: true, allowSplitMerge: true, allowMeasurementAnnotations: true,
+  allowCastling: true, allowEnPassant: true, allowPromotion: true, objective: "checkmate" as const,
+};
+
+const engine = new QCEngine(adapter, rules);
+engine.initializeFromPosition({
+  startingFen: "2KR2k1/5ppp/8/8/3q4/8/8/8 w - - 0 1",
+  // setupMoves build quantum state (superposition/entanglement) BEFORE the
+  // game starts — they are not game moves. The FEN's active color decides
+  // whose turn it is regardless of how many setup moves there are.
+  setupMoves: ["g8^f8h8", "d8^d7g8"],
+  history: [],
+});
+
+// Sandboxed lookahead with its own isolated simulation. The factory must
+// return a fresh adapter sharing the same loaded module.
+const explorer = createStackExplorer(
+  engine, engine.getGameData(), () => new QuantumChessQuantumAdapterWasm(mod),
+);
+```
+
+> **Migrating from `createQuantumForgePort` (≤ 0.2.2):** earlier builds exposed a
+> port-backed adapter constructed as
+> `new QuantumChessQuantumAdapter(createQuantumForgePort(QFW))`. Both that adapter
+> and `createQuantumForgePort` were removed; use `QuantumChessQuantumAdapterWasm`
+> as above. The engine, explorer, and move APIs are unchanged, and the WASM
+> adapter matches the live game exactly — including captures through the explorer
+> and `setupMoves`, which the old adapter did not always reflect.
+
 ## Playing Against Your AI
 
 The easiest way to test your AI: write a `.js` file and upload it in the game.
@@ -214,4 +262,4 @@ New to Quantum Chess? Learn the rules and strategy at [chess.quantumnative.io](h
 
 ## License
 
-MIT -- see [LICENSE](LICENSE). Note that the quantum simulation engine (`@quantum-native/quantum-forge-chess`) is a separate package with its own license.
+MIT -- see [LICENSE](LICENSE). The quantum simulation engine is compiled to WebAssembly (`qc-game.wasm`) and bundled with this package; it is built from a separately-licensed source.

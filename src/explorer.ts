@@ -5,7 +5,7 @@ import {
   type QChessGameData,
   type RulesConfig
 } from "./core";
-import type { QuantumChessQuantumAdapter } from "./quantum";
+import type { QuantumChessAdapter } from "./quantum";
 import { QCEngine, type MeasurementForceMode } from "./engine";
 import { buildLegalMoveSet } from "./legal-moves";
 import type {
@@ -17,8 +17,8 @@ import type {
   QCSample
 } from "./types";
 
-/** Factory that creates a fresh QuantumChessQuantumAdapter instance. */
-export type QuantumAdapterFactory = () => QuantumChessQuantumAdapter;
+/** Factory that creates a fresh QuantumChessAdapter instance (any impl). */
+export type QuantumAdapterFactory = () => QuantumChessAdapter;
 
 // Piece values for the built-in evaluator
 const PIECE_VALUES: Record<string, number> = {

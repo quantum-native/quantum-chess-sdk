@@ -41,7 +41,7 @@ export class ModuleWorkerPlayer implements QCPlayer {
 
   async initialize(): Promise<void> {
     if (this.initialized) return;
-    this.worker = new Worker(new URL("./adapters/module-worker-runtime.js", import.meta.url), { type: "module" });
+    this.worker = new Worker(new URL("./module-worker-runtime.ts", import.meta.url), { type: "module" });
     const response = await this.request({ type: "initialize", url: this.url });
     if (response.type !== "initialized") throw new Error("Custom AI worker did not initialize.");
     this.name = response.name;
