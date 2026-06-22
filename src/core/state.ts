@@ -125,6 +125,48 @@ export function gameDataToPositionString(gameData: QChessGameData): string {
   return parts.join(" ");
 }
 
+/**
+ * Parse a position string into a QChessPosition. Inverse of
+ * gameDataToPositionString. Accepts the format the engine and web app
+ * emit:
+ *   "[position] fen <fen> [setup <m> ...] [moves <m> ...]"
+ * The leading "position" keyword is optional, and the FEN may have fewer
+ * than 6 fields. Returns null if no FEN is present.
+ *
+ * Use with QCEngine.initializeFromPosition() to load a position copied
+ * straight from the app (setup moves and history included).
+ */
+export function parsePositionString(str: string): QChessPosition | null {
+  const tokens = str.trim().split(/\s+/).filter(Boolean);
+  let i = 0;
+  if (tokens[i] === "position") i++;
+  if (tokens[i] !== "fen") return null;
+  i++;
+
+  const fenParts: string[] = [];
+  while (i < tokens.length && tokens[i] !== "setup" && tokens[i] !== "moves") {
+    fenParts.push(tokens[i++]);
+  }
+  if (fenParts.length === 0) return null;
+  const startingFen = fenParts.join(" ");
+
+  let setupMoves: string[] | undefined;
+  if (tokens[i] === "setup") {
+    i++;
+    const collected: string[] = [];
+    while (i < tokens.length && tokens[i] !== "moves") collected.push(tokens[i++]);
+    if (collected.length > 0) setupMoves = collected;
+  }
+
+  const history: string[] = [];
+  if (tokens[i] === "moves") {
+    i++;
+    while (i < tokens.length) history.push(tokens[i++]);
+  }
+
+  return { startingFen, ...(setupMoves ? { setupMoves } : {}), history };
+}
+
 export function fenToGameData(fen: string): QChessGameData | null {
   const parts = fen.trim().split(/\s+/);
   if (parts.length < 1) return null;

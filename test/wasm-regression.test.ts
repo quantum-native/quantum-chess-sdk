@@ -10,7 +10,10 @@
  *   - setupMoves (splits) are reflected in the engine state
  * plus basic move/undo and sampling on the WASM adapter.
  */
-import { QCEngine, QuantumChessQuantumAdapterWasm, loadQCGameModule, createStackExplorer } from "../src/index";
+import {
+  QCEngine, QuantumChessQuantumAdapterWasm, loadQCGameModule, createStackExplorer,
+  createPositionExplorer, DEFAULT_RULES, parsePositionString, toMoveChoice,
+} from "../src/index";
 
 const RULES = {
   quantumEnabled: true, allowSplitMerge: true, allowMeasurementAnnotations: true,
@@ -80,6 +83,28 @@ async function main() {
     assert(samples.length === 50, "50 samples returned");
     const ref = engine.getGameData().board.pieces;
     assert(samples.every((s) => s.pieces.every((p, i) => p === ref[i])), "classical samples match board");
+  }
+
+  // --- 5: one-call createPositionExplorer from a pasted position string ---
+  console.log("Test 5: createPositionExplorer from a position string");
+  {
+    const ex = await createPositionExplorer(
+      "position fen 2KR2k1/5ppp/8/8/8/8/8/8 w - - 0 1 setup g8^f8h8 d8^d7g8",
+    );
+    const probs = ex.view.gameData.board.probabilities;
+    assert(probs[sq("d8")] < 0.99, "string with setup: rook split off d8");
+    assert(ex.view.legalMoves.standard.length > 0, "legal moves available");
+    // toMoveChoice makes a legal-move option directly apply()-able.
+    const applied = ex.apply(toMoveChoice(ex.view.legalMoves.standard[0]));
+    assert(applied.success, "toMoveChoice(option) applies successfully");
+  }
+
+  // --- 6: DEFAULT_RULES preset + parsePositionString are exported ---
+  console.log("Test 6: exported helpers");
+  {
+    assert(DEFAULT_RULES.quantumEnabled === true, "DEFAULT_RULES exported");
+    const p = parsePositionString("position fen 2KR2k1/5ppp/8/8/8/8/8/8 w - - 0 1 setup d8^d7g8");
+    assert(p !== null && p.setupMoves?.[0] === "d8^d7g8", "parsePositionString round-trips setup");
   }
 
   console.log(`\n${passed} passed, ${failed} failed`);

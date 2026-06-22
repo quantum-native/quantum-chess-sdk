@@ -13,32 +13,13 @@
 import { createClassicalStartGameData, CLASSICAL_START_FEN, type RulesConfig } from "./core";
 import { QuantumChessQuantumAdapterWasm, loadQCGameModule } from "./quantum";
 import { QCMatchRunner, type QCMatchEventHandler } from "./match-runner";
+import { DEFAULT_RULES, CLASSICAL_RULES } from "./rules-presets";
 import type {
   QCPlayer,
   QCGameResult,
   QCMatchConfig,
   QCMatchEvent
 } from "./types";
-
-// ---------------------------------------------------------------------------
-// Default rules
-// ---------------------------------------------------------------------------
-
-const DEFAULT_RULES: RulesConfig = {
-  quantumEnabled: true,
-  allowSplitMerge: true,
-  allowMeasurementAnnotations: true,
-  allowCastling: true,
-  allowEnPassant: true,
-  allowPromotion: true,
-  objective: "checkmate"
-};
-
-const CLASSICAL_RULES: RulesConfig = {
-  ...DEFAULT_RULES,
-  quantumEnabled: false,
-  allowSplitMerge: false,
-};
 
 // ---------------------------------------------------------------------------
 // Game runner options

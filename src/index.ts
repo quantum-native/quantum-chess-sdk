@@ -34,6 +34,14 @@ export type {
 // Engine
 export { QCEngine } from "./engine";
 
+// Rule presets — spread and override instead of hand-writing the object:
+//   new QCEngine(adapter, { ...DEFAULT_RULES, allowCastling: false })
+export { DEFAULT_RULES, CLASSICAL_RULES } from "./rules-presets";
+
+// One-call standalone helpers (position explorer / analysis engine).
+export { createAnalysisEngine, createPositionExplorer, toMoveChoice } from "./standalone";
+export type { PositionInput, StandaloneOptions } from "./standalone";
+
 // Legal move builder
 export { buildLegalMoveSet } from "./legal-moves";
 
