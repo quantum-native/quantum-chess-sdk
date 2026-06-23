@@ -1,8 +1,10 @@
-import * as QuantumForgeWeb from "@quantum-native/quantum-forge-chess";
 import { createClassicalStartGameData } from "../core";
+import {
+  QuantumChessQuantumAdapterWasm,
+  loadQCGameModule,
+} from "../quantum";
 import { QCEngine } from "../engine";
 import { createStackExplorer } from "../stack-explorer";
-import { createQuantumForgePort, QuantumChessQuantumAdapter, type QuantumForgeLikeModule } from "../quantum";
 import type { QCClock, QCEngineView, QCGameResult, QCMoveRecord, QCPlayer } from "../types";
 import { validatePlayerShape } from "../ai-validation";
 
@@ -12,19 +14,20 @@ type WorkerRequest =
   | { type: "opponentMove"; move: QCMoveRecord; view: QCEngineView }
   | { type: "gameOver"; result: QCGameResult };
 
-let initPromise: Promise<void> | null = null;
+let modulePromise: ReturnType<typeof loadQCGameModule> | null = null;
 let player: QCPlayer | null = null;
-const quantumForgeModule = QuantumForgeWeb as unknown as QuantumForgeLikeModule & {
-  QuantumForge: { initialize?: () => Promise<void> };
-};
 
-function ensureQuantumForge(): Promise<void> {
-  initPromise ??= quantumForgeModule.QuantumForge.initialize?.() ?? Promise.resolve();
-  return initPromise;
+let cachedModule: Awaited<ReturnType<typeof loadQCGameModule>> | null = null;
+
+async function ensureQuantumForge(): Promise<void> {
+  if (cachedModule) return;
+  modulePromise ??= loadQCGameModule();
+  cachedModule = await modulePromise;
 }
 
-function createAdapter(): QuantumChessQuantumAdapter {
-  return new QuantumChessQuantumAdapter(createQuantumForgePort(quantumForgeModule));
+function createAdapter(): QuantumChessQuantumAdapterWasm {
+  if (!cachedModule) throw new Error("qc-game module not loaded; call ensureQuantumForge first");
+  return new QuantumChessQuantumAdapterWasm(cachedModule);
 }
 
 function createExplorer(view: QCEngineView) {

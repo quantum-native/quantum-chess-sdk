@@ -8,6 +8,16 @@ Build AI players for [Quantum Chess](https://quantumchess.net). The SDK provides
 npm install @quantum-native/quantum-chess-sdk
 ```
 
+No registry configuration is needed — the package and its engine are on the
+public npm registry. If install fails with a **404 / "not found" from
+`npm.pkg.github.com`**, your `.npmrc` is routing the `@quantum-native` scope to
+GitHub Packages. Remove that line so the scope resolves to public npm:
+
+```
+# delete this if present in ~/.npmrc or ./.npmrc
+@quantum-native:registry=https://npm.pkg.github.com
+```
+
 ## Quick Start
 
 ```typescript
@@ -103,6 +113,68 @@ if (result.measured) {
   const expected = p * passScore + (1 - p) * failScore;
 }
 ```
+
+## Standalone Engine (analysis / tools)
+
+Most AIs only implement `chooseMove` and let the match runner own the engine.
+To drive the engine yourself — a position explorer, analysis tool, or test
+harness — use the one-call helpers. Paste the same `position` string the app
+shows (FEN, setup moves, and history all supported):
+
+```typescript
+import { createPositionExplorer, toMoveChoice } from "@quantum-native/quantum-chess-sdk";
+
+const explorer = await createPositionExplorer(
+  "position fen 2KR2k1/5ppp/8/8/3q4/8/8/8 w - - 0 1 setup g8^f8h8 d8^d7g8",
+);
+
+const moves = explorer.view.legalMoves;                  // legal moves for the side to move
+const result = explorer.apply(toMoveChoice(moves.standard[0])); // try a move; undo() to revert
+const score = explorer.evaluate().score;
+```
+
+`view.legalMoves` entries carry engine metadata; `toMoveChoice()` turns one
+into the `{ type, from, to }` shape `apply()` expects (it also handles split
+and merge moves).
+
+`createAnalysisEngine(position)` returns a bare `QCEngine` (for
+`getView()` / `executeMove()`) the same way. Both accept a `position`/FEN
+string or a `QChessPosition` object, and an optional `{ rules }` override
+(defaults to `DEFAULT_RULES`).
+
+> **`setup` moves** build quantum state (superposition/entanglement) *before*
+> the game starts — they are not game moves. The FEN's active color decides
+> whose turn it is, regardless of how many setup moves there are.
+
+<details><summary>Manual construction (if you need full control)</summary>
+
+```typescript
+import {
+  QCEngine, QuantumChessQuantumAdapterWasm, loadQCGameModule,
+  createStackExplorer, DEFAULT_RULES, parsePositionString,
+} from "@quantum-native/quantum-chess-sdk";
+
+const mod = await loadQCGameModule();               // load the engine once
+const engine = new QCEngine(new QuantumChessQuantumAdapterWasm(mod), {
+  ...DEFAULT_RULES, allowCastling: false,           // override any rule field
+});
+engine.initializeFromPosition(
+  parsePositionString("position fen 2KR2k1/5ppp/8/8/3q4/8/8/8 w - - 0 1")!,
+);
+const explorer = createStackExplorer(
+  engine, engine.getGameData(), () => new QuantumChessQuantumAdapterWasm(mod),
+);
+```
+</details>
+
+> **Migrating from `createQuantumForgePort` (≤ 0.2.2):** earlier builds exposed a
+> port-backed adapter constructed as
+> `new QuantumChessQuantumAdapter(createQuantumForgePort(QFW))`. Both that adapter
+> and `createQuantumForgePort` were removed — use `createPositionExplorer` /
+> `createAnalysisEngine` (or `QuantumChessQuantumAdapterWasm` directly). The
+> engine, explorer, and move APIs are unchanged, and the WASM adapter matches the
+> live game exactly — including captures through the explorer and `setupMoves`,
+> which the old adapter did not always reflect.
 
 ## Playing Against Your AI
 
@@ -214,4 +286,4 @@ New to Quantum Chess? Learn the rules and strategy at [chess.quantumnative.io](h
 
 ## License
 
-MIT -- see [LICENSE](LICENSE). Note that the quantum simulation engine (`@quantum-native/quantum-forge-chess`) is a separate package with its own license.
+MIT -- see [LICENSE](LICENSE). The quantum simulation engine is compiled to WebAssembly (`qc-game.wasm`) and bundled with this package; it is built from a separately-licensed source.

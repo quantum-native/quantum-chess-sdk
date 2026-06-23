@@ -290,6 +290,7 @@ export class PureSDKAdapter implements QCPlayer {
 
     for (let depth = 1; depth <= this.opts.maxDepth; depth++) {
       if (this.isTimeUp()) break;
+      await this.yieldToMainThread();
       const depthStart = Date.now();
 
       let iterBestChoice = candidates[0].choice;
@@ -300,6 +301,7 @@ export class PureSDKAdapter implements QCPlayer {
 
       for (const { choice, move } of candidates) {
         if (this.isTimeUp()) break;
+        await this.yieldToMainThread();
 
         try {
           const score = this.evaluateMove(explorer, choice, move, depth - 1, isWhite, alpha, beta);
@@ -364,6 +366,10 @@ export class PureSDKAdapter implements QCPlayer {
 
   onGameOver(_result: QCGameResult): void {}
   dispose(): void {}
+
+  private async yieldToMainThread(): Promise<void> {
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  }
 
   // ---------------------------------------------------------------------------
   // Search

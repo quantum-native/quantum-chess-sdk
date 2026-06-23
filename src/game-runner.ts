@@ -11,34 +11,15 @@
  */
 
 import { createClassicalStartGameData, CLASSICAL_START_FEN, type RulesConfig } from "./core";
-import type { QuantumPrimitivePort } from "./core";
+import { QuantumChessQuantumAdapterWasm, loadQCGameModule } from "./quantum";
 import { QCMatchRunner, type QCMatchEventHandler } from "./match-runner";
+import { DEFAULT_RULES, CLASSICAL_RULES } from "./rules-presets";
 import type {
   QCPlayer,
   QCGameResult,
   QCMatchConfig,
   QCMatchEvent
 } from "./types";
-
-// ---------------------------------------------------------------------------
-// Default rules
-// ---------------------------------------------------------------------------
-
-const DEFAULT_RULES: RulesConfig = {
-  quantumEnabled: true,
-  allowSplitMerge: true,
-  allowMeasurementAnnotations: true,
-  allowCastling: true,
-  allowEnPassant: true,
-  allowPromotion: true,
-  objective: "checkmate"
-};
-
-const CLASSICAL_RULES: RulesConfig = {
-  ...DEFAULT_RULES,
-  quantumEnabled: false,
-  allowSplitMerge: false,
-};
 
 // ---------------------------------------------------------------------------
 // Game runner options
@@ -104,22 +85,19 @@ export interface GameRunner {
  * ```
  */
 export async function createGameRunner(): Promise<GameRunner> {
-  // Dynamic import so the SDK doesn't hard-fail if quantum-forge-chess
-  // isn't installed (e.g., during type-checking or in test environments).
-  // @ts-ignore -- peer dependency, may not be installed during type-checking
-  const QFW = await import("@quantum-native/quantum-forge-chess");
-  await (QFW as any).QuantumForge.initialize();
-
-  // Import adapter internals (these come from qc-quantum, which wraps QuantumForge)
-  const { QuantumChessQuantumAdapter, createQuantumForgePort } = await import("./quantum");
-  const { createPoolingPort } = await import("./pooling-port");
-
-  const basePort = createQuantumForgePort(QFW as any);
-  const pool = createPoolingPort(basePort);
+  // Load the canonical chess-on-QF library. Each QCGame instance
+  // shares this module but owns its own quantum state, so no port
+  // pooling layer is needed — adapters are inherently isolated.
+  const module = await loadQCGameModule();
 
   function createAdapter() {
-    return new QuantumChessQuantumAdapter(createPoolingPort(createQuantumForgePort(QFW as any)));
+    return new QuantumChessQuantumAdapterWasm(module);
   }
+
+  // Track live adapters so dispose() can release their underlying
+  // QCGame instances (which factorize their qudits out of the shared
+  // QF state).
+  const live = new Set<QuantumChessQuantumAdapterWasm>();
 
   return {
     async playMatch(white, black, options = {}) {
@@ -142,17 +120,26 @@ export async function createGameRunner(): Promise<GameRunner> {
           : undefined,
       };
 
-      pool.resetAll();
-      const quantum = new QuantumChessQuantumAdapter(pool);
-      const adapterFactory = () => createAdapter();
+      const quantum = createAdapter();
+      live.add(quantum);
+      const adapterFactory = () => {
+         const a = createAdapter();
+         live.add(a);
+         return a;
+      };
       const runner = new QCMatchRunner(config);
 
-      return runner.run(quantum, options.onEvent, adapterFactory);
+      try {
+         return await runner.run(quantum, options.onEvent, adapterFactory);
+      } finally {
+         quantum.dispose();
+         live.delete(quantum);
+      }
     },
 
     dispose() {
-      // QuantumForge doesn't have a global cleanup API.
-      // The pooling port handles per-game cleanup via resetAll().
+      for (const a of live) a.dispose();
+      live.clear();
     }
   };
 }

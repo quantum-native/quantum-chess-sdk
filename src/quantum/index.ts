@@ -1,13 +1,6 @@
-// Re-export quantum port types from core (canonical source)
-export type {
-  QuantumHandle,
-  QuantumPredicate,
-  QuantumProbability,
-  ReducedDensityMatrixEntry,
-  QuantumPrimitivePort,
-  OperationStep,
-  QuantumMoveResult
-} from "../core";
-export * from "./port";
-export * from "./adapter";
+// Re-export the move-result type from core for adapter consumers.
+export type { QuantumMoveResult } from "../core";
+
 export * from "./visualTelemetry";
+export * from "./wasmAdapter";
+export * from "./quantumChessAdapter";

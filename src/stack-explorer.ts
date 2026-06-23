@@ -18,7 +18,7 @@ import {
   type QChessGameData,
   type RulesConfig,
 } from "./core";
-import type { QuantumChessQuantumAdapter } from "./quantum";
+import type { QuantumChessAdapter } from "./quantum";
 import { QCEngine } from "./engine";
 import { buildLegalMoveSet } from "./legal-moves";
 import type {
@@ -32,7 +32,7 @@ import type {
   QCMoveOption
 } from "./types";
 
-export type QuantumAdapterFactory = () => QuantumChessQuantumAdapter;
+export type QuantumAdapterFactory = () => QuantumChessAdapter;
 
 const PIECE_VALUES: Record<string, number> = {
   P: 1, N: 3, B: 3, R: 5, Q: 9, K: 0,
@@ -97,6 +97,7 @@ interface UndoEntry {
 export class StackExplorer implements QCExplorer {
   private readonly engine: QCEngine;
   private readonly rules: RulesConfig;
+  private readonly adapterFactory: QuantumAdapterFactory;
   /** Dispose callback to destroy the isolated simulation when done. */
   private readonly _dispose: (() => void) | null;
   readonly depth: number;
@@ -107,11 +108,13 @@ export class StackExplorer implements QCExplorer {
   constructor(
     engine: QCEngine,
     rules: RulesConfig,
+    adapterFactory: QuantumAdapterFactory,
     depth: number = 0,
     dispose?: () => void
   ) {
     this.engine = engine;
     this.rules = rules;
+    this.adapterFactory = adapterFactory;
     this.depth = depth;
     this._dispose = dispose ?? null;
   }
@@ -222,7 +225,14 @@ export class StackExplorer implements QCExplorer {
   fork(count: number = 2): QCExplorer[] {
     const forks: QCExplorer[] = [];
     for (let i = 0; i < count; i++) {
-      forks.push(new StackExplorer(this.engine, this.rules, this.depth));
+      const adapter = this.adapterFactory();
+      const engine = new QCEngine(adapter, this.rules);
+      engine.initializeFromPosition(this.engine.getGameData().position);
+      const port = (adapter as any).port;
+      const dispose = typeof port?.dispose === "function"
+        ? () => port.dispose()
+        : undefined;
+      forks.push(new StackExplorer(engine, this.rules, this.adapterFactory, this.depth, dispose));
     }
     return forks;
   }
@@ -367,7 +377,14 @@ export class StackExplorer implements QCExplorer {
     if (choice.type !== "standard") return false;
     const lm = this._cachedLegalMoves ?? buildLegalMoveSet(this.engine.getGameData());
     const moveOpt = lm.standard.find(m => m.from === choice.from && m.to === choice.to);
-    return moveOpt?.willMeasure ?? false;
+    if (!moveOpt?.willMeasure) return false;
+    const gd = this.engine.getGameData();
+    const sourceProbability = gd.board.probabilities[choice.from] ?? 0;
+    const targetProbability = gd.board.probabilities[choice.to] ?? 0;
+    return (
+      sourceProbability > 1e-6 && sourceProbability < 1 - 1e-6 ||
+      targetProbability > 1e-6 && targetProbability < 1 - 1e-6
+    );
   }
 
   private applyClassicalMove(choice: QCMoveChoice & { type: "standard" }, gd: QChessGameData): void {
@@ -459,5 +476,5 @@ export function createStackExplorer(
     ? () => port.dispose()
     : undefined;
 
-  return new StackExplorer(searchEngine, engine.getView().rules, 0, dispose);
+  return new StackExplorer(searchEngine, engine.getView().rules, adapterFactory, 0, dispose);
 }
