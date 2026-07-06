@@ -45,8 +45,7 @@ export interface QCGameModule {
 }
 
 /** @deprecated use QCGameModule. Old internal name kept for one cycle. */
-// eslint-disable-next-line @typescript-eslint/no-empty-interface
-export interface QCGameWasmModule extends QCGameModule {}
+export type QCGameWasmModule = QCGameModule;
 
 interface QCGameInstance {
   clear(): void;

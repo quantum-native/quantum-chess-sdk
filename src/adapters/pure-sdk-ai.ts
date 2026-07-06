@@ -6,8 +6,6 @@ import type {
   QCClock,
   QCGameResult,
   QCMoveOption,
-  QCSplitOption,
-  QCMergeOption,
   QCLegalMoveSet
 } from "../types";
 import { zobristHash } from "../zobrist";
@@ -382,13 +380,13 @@ export class PureSDKAdapter implements QCPlayer {
   private evaluateMove(
     explorer: QCExplorer,
     choice: QCMoveChoice,
-    move: { willMeasure?: boolean } | null,
+    move: QCMoveOption | null,
     remainingDepth: number,
     isWhiteRoot: boolean,
     alpha: number,
     beta: number
   ): number {
-    const hasUndo = typeof (explorer as any).undo === "function";
+    const hasUndo = typeof explorer.undo === "function";
 
     if (move?.willMeasure) {
       // Expectimax: branch on both measurement outcomes (sequential for do/undo)
@@ -397,13 +395,13 @@ export class PureSDKAdapter implements QCPlayer {
       const passScore = pass.success
         ? this.negamax(pass.explorer, remainingDepth, -Infinity, Infinity, !isWhiteRoot)
         : this.staticEval(pass.explorer);
-      if (hasUndo && pass.explorer === explorer) (explorer as any).undo();
+      if (hasUndo && pass.explorer === explorer) explorer.undo();
 
       const fail = explorer.apply(choice, { forceMeasurement: "fail" });
       const failScore = fail.success
         ? this.negamax(fail.explorer, remainingDepth, -Infinity, Infinity, !isWhiteRoot)
         : this.staticEval(fail.explorer);
-      if (hasUndo && fail.explorer === explorer) (explorer as any).undo();
+      if (hasUndo && fail.explorer === explorer) explorer.undo();
 
       const expected = p * passScore + (1 - p) * failScore;
       return isWhiteRoot ? expected : -expected;
@@ -413,7 +411,7 @@ export class PureSDKAdapter implements QCPlayer {
     if (!result.success) return -99999;
 
     const score = this.negamax(result.explorer, remainingDepth, alpha, beta, !isWhiteRoot);
-    if (hasUndo && result.explorer === explorer) (explorer as any).undo();
+    if (hasUndo && result.explorer === explorer) explorer.undo();
     return isWhiteRoot ? score : -score;
   }
 
@@ -510,7 +508,7 @@ export class PureSDKAdapter implements QCPlayer {
       this._branchingMoves[ply] += candidates.length;
     }
 
-    const hasUndo = typeof (explorer as any).undo === "function";
+    const hasUndo = typeof explorer.undo === "function";
 
     if (maximizing) {
       let best = -Infinity;
@@ -537,11 +535,11 @@ export class PureSDKAdapter implements QCPlayer {
           const pass = explorer.apply(choice, { forceMeasurement: "pass" });
           const p = pass.measurementPassProbability ?? 0.5;
           const ps = pass.success ? this.negamax(pass.explorer, searchDepth, alpha, beta, true, ply + 1) : this.staticEval(pass.explorer);
-          if (hasUndo && pass.explorer === explorer) (explorer as any).undo();
+          if (hasUndo && pass.explorer === explorer) explorer.undo();
 
           const fail = explorer.apply(choice, { forceMeasurement: "fail" });
           const fs = fail.success ? this.negamax(fail.explorer, searchDepth, alpha, beta, true, ply + 1) : this.staticEval(fail.explorer);
-          if (hasUndo && fail.explorer === explorer) (explorer as any).undo();
+          if (hasUndo && fail.explorer === explorer) explorer.undo();
 
           score = p * ps + (1 - p) * fs;
         } else {
@@ -549,7 +547,7 @@ export class PureSDKAdapter implements QCPlayer {
           score = result.success
             ? this.negamax(result.explorer, searchDepth, alpha, beta, false, ply + 1)
             : -99999;
-          if (hasUndo && result.explorer === explorer) (explorer as any).undo();
+          if (hasUndo && result.explorer === explorer) explorer.undo();
 
           // LMR re-search: if reduced search found something promising, search at full depth
           if (useReduction && score > alpha && result.success) {
@@ -557,7 +555,7 @@ export class PureSDKAdapter implements QCPlayer {
             score = result2.success
               ? this.negamax(result2.explorer, depth - 1, alpha, beta, false, ply + 1)
               : -99999;
-            if (hasUndo && result2.explorer === explorer) (explorer as any).undo();
+            if (hasUndo && result2.explorer === explorer) explorer.undo();
           }
         }
 
@@ -600,11 +598,11 @@ export class PureSDKAdapter implements QCPlayer {
           const pass = explorer.apply(choice, { forceMeasurement: "pass" });
           const p = pass.measurementPassProbability ?? 0.5;
           const ps = pass.success ? this.negamax(pass.explorer, searchDepth, alpha, beta, false, ply + 1) : this.staticEval(pass.explorer);
-          if (hasUndo && pass.explorer === explorer) (explorer as any).undo();
+          if (hasUndo && pass.explorer === explorer) explorer.undo();
 
           const fail = explorer.apply(choice, { forceMeasurement: "fail" });
           const fs = fail.success ? this.negamax(fail.explorer, searchDepth, alpha, beta, false, ply + 1) : this.staticEval(fail.explorer);
-          if (hasUndo && fail.explorer === explorer) (explorer as any).undo();
+          if (hasUndo && fail.explorer === explorer) explorer.undo();
 
           score = p * ps + (1 - p) * fs;
         } else {
@@ -612,14 +610,14 @@ export class PureSDKAdapter implements QCPlayer {
           score = result.success
             ? this.negamax(result.explorer, searchDepth, alpha, beta, true, ply + 1)
             : 99999;
-          if (hasUndo && result.explorer === explorer) (explorer as any).undo();
+          if (hasUndo && result.explorer === explorer) explorer.undo();
 
           if (useReduction && score < beta && result.success) {
             const result2 = explorer.apply(choice);
             score = result2.success
               ? this.negamax(result2.explorer, depth - 1, alpha, beta, true, ply + 1)
               : 99999;
-            if (hasUndo && result2.explorer === explorer) (explorer as any).undo();
+            if (hasUndo && result2.explorer === explorer) explorer.undo();
           }
         }
 
@@ -692,7 +690,7 @@ export class PureSDKAdapter implements QCPlayer {
     // Sort by MVV (most valuable victim first)
     captures.sort((a, b) => b.victimVal - a.victimVal);
 
-    const hasUndo = typeof (explorer as any).undo === "function";
+    const hasUndo = typeof explorer.undo === "function";
 
     if (maximizing) {
       for (const { choice, willMeasure } of captures) {
@@ -702,17 +700,17 @@ export class PureSDKAdapter implements QCPlayer {
           const pass = explorer.apply(choice, { forceMeasurement: "pass" });
           const p = pass.measurementPassProbability ?? 0.5;
           const ps = pass.success ? this.quiesce(pass.explorer, alpha, beta, true, maxQDepth - 1) : standPat;
-          if (hasUndo && pass.explorer === explorer) (explorer as any).undo();
+          if (hasUndo && pass.explorer === explorer) explorer.undo();
 
           const fail = explorer.apply(choice, { forceMeasurement: "fail" });
           const fs = fail.success ? this.quiesce(fail.explorer, alpha, beta, true, maxQDepth - 1) : standPat;
-          if (hasUndo && fail.explorer === explorer) (explorer as any).undo();
+          if (hasUndo && fail.explorer === explorer) explorer.undo();
 
           score = p * ps + (1 - p) * fs;
         } else {
           const result = explorer.apply(choice);
           score = result.success ? this.quiesce(result.explorer, alpha, beta, false, maxQDepth - 1) : standPat;
-          if (hasUndo && result.explorer === explorer) (explorer as any).undo();
+          if (hasUndo && result.explorer === explorer) explorer.undo();
         }
         if (score > alpha) alpha = score;
         if (alpha >= beta) break;
@@ -726,17 +724,17 @@ export class PureSDKAdapter implements QCPlayer {
           const pass = explorer.apply(choice, { forceMeasurement: "pass" });
           const p = pass.measurementPassProbability ?? 0.5;
           const ps = pass.success ? this.quiesce(pass.explorer, alpha, beta, false, maxQDepth - 1) : standPat;
-          if (hasUndo && pass.explorer === explorer) (explorer as any).undo();
+          if (hasUndo && pass.explorer === explorer) explorer.undo();
 
           const fail = explorer.apply(choice, { forceMeasurement: "fail" });
           const fs = fail.success ? this.quiesce(fail.explorer, alpha, beta, false, maxQDepth - 1) : standPat;
-          if (hasUndo && fail.explorer === explorer) (explorer as any).undo();
+          if (hasUndo && fail.explorer === explorer) explorer.undo();
 
           score = p * ps + (1 - p) * fs;
         } else {
           const result = explorer.apply(choice);
           score = result.success ? this.quiesce(result.explorer, alpha, beta, true, maxQDepth - 1) : standPat;
-          if (hasUndo && result.explorer === explorer) (explorer as any).undo();
+          if (hasUndo && result.explorer === explorer) explorer.undo();
         }
         if (score < beta) beta = score;
         if (alpha >= beta) break;
@@ -850,8 +848,8 @@ export class PureSDKAdapter implements QCPlayer {
     legalMoves: QCLegalMoveSet,
     view: QCEngineView,
     depth: number
-  ): Array<{ choice: QCMoveChoice; move: { willMeasure?: boolean } | null; priority: number }> {
-    const ordered: Array<{ choice: QCMoveChoice; move: { willMeasure?: boolean } | null; priority: number }> = [];
+  ): Array<{ choice: QCMoveChoice; move: QCMoveOption | null; priority: number }> {
+    const ordered: Array<{ choice: QCMoveChoice; move: QCMoveOption | null; priority: number }> = [];
 
     const killers = depth < this.killerMoves.length ? this.killerMoves[depth] : [-1, -1];
 
