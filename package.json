@@ -1,6 +1,6 @@
 {
   "name": "@quantum-native/quantum-chess-sdk",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "type": "module",
   "license": "MIT",
   "description": "Player SDK for building Quantum Chess AIs — match runner, explorer, tournament system, reference AI",
@@ -34,7 +34,7 @@
   "scripts": {
     "build": "tsup",
     "typecheck": "tsc --noEmit",
-    "test": "tsx test/wasm-regression.test.ts",
+    "test": "tsx test/wasm-regression.test.ts && tsx test/full-match-gate.test.ts",
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {
