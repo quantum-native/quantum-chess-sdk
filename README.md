@@ -114,6 +114,14 @@ if (result.measured) {
 }
 ```
 
+> **Note on undo across measurements:** a measurement collapses quantum state, and
+> collapse is not reversible. `undo()` after a forced-measurement apply restores the
+> board bookkeeping exactly, but superpositions the measurement collapsed stay
+> collapsed. In the pattern above, the "fail" branch is evaluated on a slightly
+> drifted state (bounded, piece-conserving). This is the same tradeoff the built-in
+> AIs accept; for exact branch comparison, `fork()` a fresh explorer per branch
+> instead of reusing one via undo.
+
 ## Standalone Engine (analysis / tools)
 
 Most AIs only implement `chooseMove` and let the match runner own the engine.
