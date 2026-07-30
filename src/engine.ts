@@ -21,6 +21,7 @@ import {
 } from "./core";
 import type { QuantumChessAdapter, QuantumMoveResult } from "./quantum";
 import { buildLegalMoveSet } from "./legal-moves";
+import { measurementCanCollapse } from "./measurement";
 import type {
   QCEngineView,
   QCLegalMoveSet,
@@ -72,10 +73,16 @@ interface EngineUndoEntry {
   // Opaque per-adapter snapshot returned by captureBookkeeping; the
   // engine just stores it and passes it back to restoreBookkeeping
   // verbatim. Legacy adapter returns a structural snap; WASM adapter
-  // returns a frame ID.
+  // returns a frame ID. Null once a replay has invalidated it.
   adapterBookkeeping: unknown;
   /** Recorded quantum operations for reverse undo. Opaque per-adapter. */
   recordedOps?: unknown;
+  /**
+   * Whether undoing this move needs a replay rather than a gate reversal.
+   * True when the move collapsed a superposition: measurement is not
+   * unitary, so no sequence of inverse gates brings the amplitudes back.
+   */
+  needsReplay: boolean;
 }
 
 export class QCEngine {
@@ -338,12 +345,17 @@ export class QCEngine {
    * This is the primary move execution method used by QCMatchRunner.
    */
   executeMove(choice: QCMoveChoice): QCMoveExecutionResult {
+    // Whether this move's measurement can destroy amplitude has to be read
+    // from the position before the move runs.
+    const canCollapse = measurementCanCollapse(this.gameData, choice);
+
     // Save undo entry BEFORE executing — always capture bookkeeping
     // and record quantum operations for reverse undo.
     const undoEntry: EngineUndoEntry = {
       gameData: cloneGameData(this.gameData),
       moveHistoryLength: this.moveHistory.length,
       adapterBookkeeping: this.quantum.captureBookkeeping(),
+      needsReplay: false,
     };
 
     // Start recording quantum operations for undo
@@ -365,25 +377,48 @@ export class QCEngine {
     const recordedOps = this.quantum.stopRecording();
     if (result.success) {
       undoEntry.recordedOps = recordedOps;
+      undoEntry.needsReplay = result.moveRecord.wasMeasurement && canCollapse;
       this.undoStack.push(undoEntry);
     } else {
-      // Move failed — reverse any partial operations. We don't peek
-      // inside `recordedOps` (its shape is adapter-specific); the
-      // adapter's undoRecordedOps is responsible for handling the
+      // Move failed — reverse any partial operations, then release the
+      // bookkeeping snapshot too. Undoing only the recorded ops leaves the
+      // snapshot unmatched, and an unmatched snapshot is never released by
+      // the adapter: a search that rejects many moves would leak one per
+      // rejection. We don't peek inside either handle (their shapes are
+      // adapter-specific); the adapter is responsible for handling the
       // "nothing to undo" case as a no-op.
       this.quantum.undoRecordedOps(recordedOps);
+      this.quantum.restoreBookkeeping(undoEntry.adapterBookkeeping);
     }
     return result;
   }
 
   /**
-   * Undo the last move. For classical positions, restores directly.
-   * For quantum positions, replays from the initial position.
+   * Undo the last move, restoring the quantum state exactly.
    * Returns true if undo succeeded, false if nothing to undo.
+   *
+   * Unitary moves are reversed in place by replaying their recorded gates
+   * backwards — cheap, and exact because unitaries invert.
+   *
+   * A move that collapsed a superposition cannot be reversed that way: no
+   * sequence of inverse gates recreates amplitudes a measurement destroyed.
+   * Reversing the gates alone leaves the simulator holding a collapsed state
+   * while the board cache reports the superposition restored, which is worse
+   * than an error — a search would explore its second measurement branch
+   * from a position that never existed. Those moves are undone by rebuilding
+   * the state from the position instead. History entries carry their own
+   * outcome (`.m0`/`.m1`), so the rebuild reproduces the pre-move state
+   * exactly rather than re-rolling the dice.
    */
   undoMove(): boolean {
     const entry = this.undoStack.pop();
     if (!entry) return false;
+
+    // adapterBookkeeping is null once an earlier rebuild invalidated it.
+    if (entry.needsReplay || entry.adapterBookkeeping === null) {
+      this.rebuildFromHistory(entry.gameData);
+      return true;
+    }
 
     // Reverse quantum operations (same simulation, no replay needed).
     // We trust the adapter's undoRecordedOps to no-op when nothing
@@ -402,13 +437,52 @@ export class QCEngine {
     return true;
   }
 
+  /**
+   * Rebuild the quantum state at `target` by replaying it from the starting
+   * position — the only way to recover state a measurement collapsed.
+   *
+   * This throws away the adapter's undo frames, so every entry still on the
+   * stack loses its handles and has to take the replay path too. Leaving the
+   * stale handles in place would be worse than useless: adapters are free to
+   * reuse handle identities after a re-initialization, so a stale handle can
+   * come to name a live frame.
+   */
+  private rebuildFromHistory(target: QChessGameData): void {
+    if (!this.initPosition) {
+      throw new Error("QCEngine: cannot undo across a measurement before initializeFromPosition");
+    }
+    const survivors = this.undoStack;
+    this.initializeFromPosition({
+      startingFen: this.initPosition.startingFen,
+      setupMoves: this.initPosition.setupMoves,
+      history: [...target.position.history],
+    });
+    for (const entry of survivors) {
+      entry.adapterBookkeeping = null;
+      entry.recordedOps = undefined;
+    }
+    this.undoStack = survivors;
+  }
+
   /** Number of moves that can be undone. */
   get undoDepth(): number {
     return this.undoStack.length;
   }
 
-  /** Clear the undo stack (e.g., after committing a position). */
-  clearUndoStack(): void {
+  /**
+   * Make every executed move permanent: release the adapter's undo state
+   * and drop the stack. Call this once a move can no longer be taken back
+   * (a committed game move). Without it the adapter's undo state grows for
+   * the whole game, and the retired quantum properties it pins grow with it.
+   *
+   * Committing the oldest entry releases every entry above it, so one call
+   * covers the whole stack.
+   */
+  commitUndoStack(): void {
+    // Entries invalidated by a rebuild hold no handle; the oldest one that
+    // still does covers every entry above it.
+    const oldest = this.undoStack.find((e) => e.adapterBookkeeping !== null);
+    if (oldest) this.quantum.commitBookkeeping(oldest.adapterBookkeeping);
     this.undoStack = [];
   }
 

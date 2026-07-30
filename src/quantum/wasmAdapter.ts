@@ -223,6 +223,13 @@ export class QuantumChessQuantumAdapterWasm {
   // restoreBookkeeping and undoRecordedOps roll a frame back. The
   // facade tracks pending frame IDs internally so the SDK's two-step
   // pattern works without changes.
+  //
+  // A pushed frame only leaves the C++ undo stack via rollback or
+  // commit. Every captureBookkeeping() must therefore be matched by a
+  // restoreBookkeeping() (move undone) or a commitBookkeeping() (move
+  // kept) — an unmatched frame stays open forever, and while any frame
+  // is open the engine parks retired quantum properties in its ancilla
+  // pool instead of destroying them, so leaked frames leak memory.
 
   private innerRecordingFrame: number | null = null;
 
@@ -234,6 +241,11 @@ export class QuantumChessQuantumAdapterWasm {
   restoreBookkeeping(handle: WasmUndoHandle): void {
     if (this.disposed) return;
     this.game.rollbackFrame(handle.frameId);
+  }
+
+  commitBookkeeping(handle: WasmUndoHandle): void {
+    if (this.disposed) return;
+    if (handle.frameId > 0) this.game.commitFrame(handle.frameId);
   }
 
   startRecording(): void {

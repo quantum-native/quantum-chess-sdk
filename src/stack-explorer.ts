@@ -4,23 +4,24 @@
  * Each search gets its OWN engine + adapter + QuantumSimulation.
  * No shared state with the main game or other players.
  *
- * - Classical moves on classical positions: direct board update (O(1))
- * - All quantum moves (including measurements): engine.executeMove + undoMove
- *   with recorded-ops reversal. Measurements use setForceMeasurement for
- *   correct post-measurement quantum state (entanglement propagation).
+ * - Every move goes through engine.executeMove + undoMove, so the board and
+ *   the simulation always move together.
+ * - Undo restores the quantum state exactly, including across measurements
+ *   (see QCEngine.undoMove), so both branches of a measurement are searched
+ *   from the same position.
  * - Dispose the simulation when the search is done.
  */
 
 import {
   cloneGameData,
   detectKingCapture,
-  indexToSquareName,
   type QChessGameData,
   type RulesConfig,
 } from "./core";
 import type { QuantumChessAdapter } from "./quantum";
 import { QCEngine } from "./engine";
 import { buildLegalMoveSet } from "./legal-moves";
+import { measurementPassProbability } from "./measurement";
 import type {
   QCExplorer,
   QCExplorerResult,
@@ -40,53 +41,15 @@ const PIECE_VALUES: Record<string, number> = {
 };
 
 // ---------------------------------------------------------------------------
-// Board snapshot
-// ---------------------------------------------------------------------------
-
-interface BoardSnapshot {
-  pieces: string[];
-  probabilities: number[];
-  ply: number;
-  castleFlags: number;
-  enPassantSquare: number;
-  fiftyCount: number;
-  fiftyPieceCount: number;
-  historyLength: number;
-}
-
-function saveSnapshot(gd: QChessGameData): BoardSnapshot {
-  return {
-    pieces: [...gd.board.pieces],
-    probabilities: [...gd.board.probabilities],
-    ply: gd.board.ply,
-    castleFlags: gd.board.castleFlags,
-    enPassantSquare: gd.board.enPassantSquare,
-    fiftyCount: gd.board.fiftyCount,
-    fiftyPieceCount: gd.board.fiftyPieceCount,
-    historyLength: gd.position.history.length
-  };
-}
-
-function restoreSnapshot(gd: QChessGameData, snap: BoardSnapshot): void {
-  gd.board.pieces = snap.pieces;
-  gd.board.probabilities = snap.probabilities;
-  gd.board.ply = snap.ply;
-  gd.board.castleFlags = snap.castleFlags;
-  gd.board.enPassantSquare = snap.enPassantSquare;
-  gd.board.fiftyCount = snap.fiftyCount;
-  gd.board.fiftyPieceCount = snap.fiftyPieceCount;
-  gd.position.history = gd.position.history.slice(0, snap.historyLength);
-}
-
-// ---------------------------------------------------------------------------
 // Undo entry
 // ---------------------------------------------------------------------------
 
-type UndoType = "classical" | "engine";
-
+/**
+ * The engine owns both halves of the undo (board state and quantum state), so
+ * an entry only has to carry what the engine doesn't: the legal-move cache
+ * this explorer threw away when the move was applied.
+ */
 interface UndoEntry {
-  type: UndoType;
-  snapshot: BoardSnapshot;
   cachedLegalMoves: QCLegalMoveSet | null;
 }
 
@@ -122,6 +85,11 @@ export class StackExplorer implements QCExplorer {
   /** Destroy the search simulation. Call after chooseMove returns. */
   dispose(): void {
     this._dispose?.();
+  }
+
+  /** How many applied moves are still undoable. One per `success: true` apply(). */
+  get undoDepth(): number {
+    return this.undoStack.length;
   }
 
   // -----------------------------------------------------------------------
@@ -238,12 +206,20 @@ export class StackExplorer implements QCExplorer {
   }
 
   /**
-   * Apply a move in-place. Caller MUST call undo() after each apply().
+   * Apply a move in-place. Every `success: true` result pushes exactly one
+   * undo entry, so the caller pairs it with exactly one undo().
+   * A `success: false` result changes nothing and must NOT be undone.
    *
-   * - Classical standard moves on classical positions: direct board update
-   * - Everything else (quantum, measurement, splits, merges): engine.executeMove
-   *   with recorded-ops undo. Measurements use setForceMeasurement for correct
-   *   post-measurement entanglement propagation.
+   * Every move goes through the engine, which moves the board and the
+   * simulation together. Updating the board here for "obviously classical"
+   * moves would be quicker, but it desynchronises the two: the board looks
+   * right until the next move reaches the engine, which re-reads the board
+   * from a simulation that never saw the move.
+   *
+   * Moves that measure are applied like any other. The outcome is random
+   * unless `options.forceMeasurement` picks a branch; either way the result
+   * carries `measurementPassProbability`, the probability the move would
+   * have gone through, so a search can weight both branches.
    */
   apply(
     choice: QCMoveChoice,
@@ -251,22 +227,6 @@ export class StackExplorer implements QCExplorer {
   ): QCExplorerResult {
     const savedLegalMoves = this._cachedLegalMoves;
     this._cachedLegalMoves = null;
-    const gd = this.engine.getGameData();
-    const snapshot = saveSnapshot(gd);
-
-    // --- Measurement: caller needs probability before branching ---
-    if (!options?.forceMeasurement && this.isMeasurementMove(choice)) {
-      const prob = choice.type === "standard"
-        ? gd.board.probabilities[choice.from]
-        : 0.5;
-      this._cachedLegalMoves = savedLegalMoves;
-      return {
-        success: true,
-        explorer: this,
-        measured: true,
-        measurementPassProbability: prob
-      };
-    }
 
     // --- OOM guard: abort before crashing WASM ---
     const adapter = (this.engine as any).quantum;
@@ -275,48 +235,10 @@ export class StackExplorer implements QCExplorer {
       return { success: false, explorer: this, measured: false };
     }
 
-    // --- Classical fast path ---
-    if (this.isClassicalPosition() && choice.type === "standard" && !options?.forceMeasurement) {
-      this.applyClassicalMove(choice, gd);
-      // Keep the adapter's classicalOccupied and squareProps in sync so that
-      // a subsequent engine-path move reads correct probabilities.
-      const quantum = (this.engine as any).quantum;
-      if (quantum?.classicalOccupied) {
-        const srcPiece = snapshot.pieces[choice.from];
-        quantum.classicalOccupied.delete(choice.from);
-        quantum.classicalOccupied.add(choice.to);
+    // Read the pass probability off the pre-move state — once the move has
+    // run, the superposition it describes is gone.
+    const passProbability = measurementPassProbability(this.engine.getGameData(), choice);
 
-        // Remove stale quantum properties on affected squares. After a merge,
-        // a square can have hasProp=true but prob=0 (the property is at |0⟩).
-        // If the classical path places a piece there, the stale property will
-        // cause syncProbabilitiesFromQuantum to overwrite the piece with prob=0.
-        if (quantum.squareProps.has(choice.from)) quantum.squareProps.delete(choice.from);
-        if (quantum.squareProps.has(choice.to)) quantum.squareProps.delete(choice.to);
-
-        // En passant: clear the captured pawn square
-        if (srcPiece?.toLowerCase() === "p" && choice.to === snapshot.enPassantSquare) {
-          const epCapture = choice.to - (srcPiece === "P" ? 8 : -8);
-          if (epCapture >= 0 && epCapture < 64) {
-            quantum.classicalOccupied.delete(epCapture);
-            if (quantum.squareProps.has(epCapture)) quantum.squareProps.delete(epCapture);
-          }
-        }
-        // Castling rook
-        if (srcPiece?.toLowerCase() === "k" && Math.abs(choice.to - choice.from) === 2) {
-          if (choice.to > choice.from) {
-            quantum.classicalOccupied.delete(choice.from + 3);
-            quantum.classicalOccupied.add(choice.from + 1);
-          } else {
-            quantum.classicalOccupied.delete(choice.from - 4);
-            quantum.classicalOccupied.add(choice.from - 1);
-          }
-        }
-      }
-      this.undoStack.push({ type: "classical", snapshot, cachedLegalMoves: savedLegalMoves });
-      return { success: true, explorer: this, measured: false };
-    }
-
-    // --- All quantum moves go through the engine ---
     if (options?.forceMeasurement) {
       this.engine.setForceMeasurement(options.forceMeasurement === "pass" ? "m1" : "m0");
     }
@@ -332,12 +254,13 @@ export class StackExplorer implements QCExplorer {
       return { success: false, explorer: this, measured: false };
     }
 
-    this.undoStack.push({ type: "engine", snapshot, cachedLegalMoves: savedLegalMoves });
+    this.undoStack.push({ cachedLegalMoves: savedLegalMoves });
     return {
       success: true,
       explorer: this,
       measured: result.moveRecord.wasMeasurement,
       measurementPassed: result.moveRecord.measurementPassed,
+      ...(passProbability !== undefined ? { measurementPassProbability: passProbability } : {})
     };
   }
 
@@ -345,107 +268,7 @@ export class StackExplorer implements QCExplorer {
     const entry = this.undoStack.pop();
     if (!entry) return;
     this._cachedLegalMoves = entry.cachedLegalMoves;
-
-    if (entry.type === "classical") {
-      restoreSnapshot(this.engine.getGameData(), entry.snapshot);
-      // Restore the adapter's classicalOccupied from the snapshot
-      const quantum = (this.engine as any).quantum;
-      if (quantum?.classicalOccupied) {
-        quantum.classicalOccupied.clear();
-        for (let sq = 0; sq < 64; sq++) {
-          if (entry.snapshot.pieces[sq] !== ".") quantum.classicalOccupied.add(sq);
-        }
-      }
-    } else {
-      this.engine.undoMove();
-    }
-  }
-
-  // -----------------------------------------------------------------------
-  // Private
-  // -----------------------------------------------------------------------
-
-  private isClassicalPosition(): boolean {
-    const probs = this.engine.getGameData().board.probabilities;
-    for (let i = 0; i < 64; i++) {
-      if (probs[i] > 0.001 && probs[i] < 0.999) return false;
-    }
-    return true;
-  }
-
-  private isMeasurementMove(choice: QCMoveChoice): boolean {
-    if (choice.type !== "standard") return false;
-    const lm = this._cachedLegalMoves ?? buildLegalMoveSet(this.engine.getGameData());
-    const moveOpt = lm.standard.find(m => m.from === choice.from && m.to === choice.to);
-    if (!moveOpt?.willMeasure) return false;
-    const gd = this.engine.getGameData();
-    const sourceProbability = gd.board.probabilities[choice.from] ?? 0;
-    const targetProbability = gd.board.probabilities[choice.to] ?? 0;
-    return (
-      sourceProbability > 1e-6 && sourceProbability < 1 - 1e-6 ||
-      targetProbability > 1e-6 && targetProbability < 1 - 1e-6
-    );
-  }
-
-  private applyClassicalMove(choice: QCMoveChoice & { type: "standard" }, gd: QChessGameData): void {
-    const from = choice.from;
-    const to = choice.to;
-    const srcPiece = gd.board.pieces[from];
-
-    // Promotion: replace pawn with promoted piece
-    let destPiece = srcPiece;
-    if (choice.promotion && srcPiece.toLowerCase() === "p") {
-      const isWhite = srcPiece === "P";
-      destPiece = isWhite ? choice.promotion.toUpperCase() : choice.promotion.toLowerCase();
-    }
-
-    gd.board.pieces[from] = ".";
-    gd.board.pieces[to] = destPiece;
-    gd.board.probabilities[from] = 0;
-    gd.board.probabilities[to] = 1;
-
-    // En passant
-    if (srcPiece.toLowerCase() === "p" && gd.board.enPassantSquare === to) {
-      const capturedSq = to - (srcPiece === "P" ? 8 : -8);
-      if (capturedSq >= 0 && capturedSq < 64) {
-        gd.board.pieces[capturedSq] = ".";
-        gd.board.probabilities[capturedSq] = 0;
-      }
-    }
-
-    // Castling
-    if (srcPiece.toLowerCase() === "k" && Math.abs(to - from) === 2) {
-      const rook = srcPiece === "K" ? "R" : "r";
-      if (to > from) {
-        gd.board.pieces[from + 3] = "."; gd.board.pieces[from + 1] = rook;
-        gd.board.probabilities[from + 3] = 0; gd.board.probabilities[from + 1] = 1;
-      } else {
-        gd.board.pieces[from - 4] = "."; gd.board.pieces[from - 1] = rook;
-        gd.board.probabilities[from - 4] = 0; gd.board.probabilities[from - 1] = 1;
-      }
-    }
-
-    gd.board.ply += 1;
-    if (srcPiece.toLowerCase() === "p" && Math.abs(to - from) === 16) {
-      gd.board.enPassantSquare = from + (to - from) / 2;
-    } else {
-      gd.board.enPassantSquare = -1;
-    }
-
-    // Castle rights: K=bit0, Q=bit1, k=bit2, q=bit3
-    const clearCastleFor = (sq: number) => {
-      if (sq === 4) gd.board.castleFlags &= ~0b0011;
-      else if (sq === 0) gd.board.castleFlags &= ~0b0010;
-      else if (sq === 7) gd.board.castleFlags &= ~0b0001;
-      else if (sq === 60) gd.board.castleFlags &= ~0b1100;
-      else if (sq === 56) gd.board.castleFlags &= ~0b1000;
-      else if (sq === 63) gd.board.castleFlags &= ~0b0100;
-    };
-    clearCastleFor(from);
-    clearCastleFor(to);
-
-    const promoSuffix = choice.promotion ? choice.promotion.toUpperCase() : "";
-    gd.position.history = [...gd.position.history, `${indexToSquareName(from)}-${indexToSquareName(to)}${promoSuffix}`];
+    this.engine.undoMove();
   }
 }
 

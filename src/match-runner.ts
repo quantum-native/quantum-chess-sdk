@@ -300,6 +300,11 @@ export class QCMatchRunner {
         }, peaks);
       }
 
+      // The move is now part of the game and can't be taken back (undo
+      // rebuilds the position from scratch instead). Release the adapter's
+      // undo state so it doesn't accumulate for the length of the game.
+      engine.commitUndoStack();
+
       // Capture quantum health after move
       const health = getQuantumHealth();
       updatePeaks(health, ply);

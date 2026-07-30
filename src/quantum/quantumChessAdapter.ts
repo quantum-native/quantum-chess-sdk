@@ -34,6 +34,13 @@ export interface QuantumChessAdapter {
   // Undo.
   captureBookkeeping(): unknown;
   restoreBookkeeping(snapshot: unknown): void;
+  /**
+   * Discard a snapshot without rolling back — the move it guards is now
+   * permanent. Every captureBookkeeping() must be matched by exactly one
+   * restoreBookkeeping() or commitBookkeeping(); an unmatched snapshot
+   * keeps the simulation's undo state alive forever.
+   */
+  commitBookkeeping(snapshot: unknown): void;
   startRecording(): void;
   stopRecording(): unknown;
   undoRecordedOps(ops: unknown): void;
