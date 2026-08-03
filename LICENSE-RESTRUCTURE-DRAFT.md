@@ -25,6 +25,12 @@ This file is the release checklist; the proposed license text is in
 
 ## Questions for counsel
 
+- Entity naming: Quantum Realm Games is the legal entity; Quantum Native
+  is the brand (d/b/a). Confirm how the copyright lines and licensor
+  references should read across LICENSE.md (both parts), the venue
+  agreement, the Steam EULA, and the site ToS — and that the trademarks
+  are recited as owned by the entity.
+
 - Patent posture: if Quantum Native holds patent claims covering quantum
   chess mechanics, (a) confirm MIT (no express patent grant) is preferred
   over Apache-2.0 for the code layer, and (b) decide whether the Engine
