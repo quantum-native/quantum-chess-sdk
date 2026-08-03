@@ -25,18 +25,32 @@ This file is the release checklist; the proposed license text is in
 
 ## Questions for counsel
 
-- Entity naming: Quantum Realm Games is the legal entity; Quantum Native
-  is the brand (d/b/a). Confirm how the copyright lines and licensor
-  references should read across LICENSE.md (both parts), the venue
-  agreement, the Steam EULA, and the site ToS.
-- Trademark ownership chain: the "Quantum Chess" mark is owned PERSONALLY
-  by Christopher Cantwell, not by the entity. For QRG to grant venue,
-  exhibit, and tournament licenses, paper a founder→company trademark
-  license (exclusive, with sublicensing rights and quality-control
-  provisions — both layers need quality control to avoid naked-licensing
-  abandonment risk). Also confirm who owns the other marks (Quantum
-  Native, Quantum Forge, Quantris, Ponq, Bloch Invaders) and whether any
-  are registered.
+- Entity naming: Quantum Realm Games is a SOLE PROPRIETORSHIP — the legal
+  person behind QRG and the Quantum Native brand is Christopher Cantwell
+  individually, so licensor/copyright lines read "Christopher Cantwell,
+  d/b/a Quantum Realm Games / Quantum Native". Confirm this reading
+  across LICENSE.md (both parts), the venue agreement, the Steam EULA,
+  and the site ToS.
+- Trademark: QUANTUM CHESS, U.S. Reg. No. 5,242,360 (Class 9,
+  "downloadable electronic game software"; registered 2017-07-11; §8/§15
+  accepted 2023-06-14 — incontestable), owned by Christopher Cantwell.
+  Because QRG is a sole proprietorship, owner and operator are the same
+  person — NO intercompany trademark license is needed. Outbound venue/
+  tournament licenses still need quality-control clauses (naked-licensing
+  risk). If an entity is formed later, decide assign-vs-license for the
+  mark then. Also confirm ownership/registration of the other marks
+  (Quantum Native, Quantum Forge, Quantris, Ponq, Bloch Invaders).
+- Entity formation: flag for discussion — venue licensing, public
+  installations, and subscription billing under a sole proprietorship
+  expose personal assets. LLC formation (plus general/E&O liability
+  insurance for exhibit installs) is worth pricing before the first
+  venue agreement is signed.
+- **DEADLINE: §8/§9 ten-year renewal window is open** (USPTO courtesy
+  reminder sent 2026-07-11); file by 2027-07-11 (grace to 2028-01-11 with
+  surcharge). Calendar it now.
+- Class scope: the registration covers Class 9 only. Venue exhibition,
+  arcade operation, and tournament services are Class 41 — consider a new
+  application now that these are revenue lines.
 
 - Patent posture: if Quantum Native holds patent claims covering quantum
   chess mechanics, (a) confirm MIT (no express patent grant) is preferred
