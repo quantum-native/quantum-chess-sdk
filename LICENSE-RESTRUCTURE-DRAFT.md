@@ -28,8 +28,15 @@ This file is the release checklist; the proposed license text is in
 - Entity naming: Quantum Realm Games is the legal entity; Quantum Native
   is the brand (d/b/a). Confirm how the copyright lines and licensor
   references should read across LICENSE.md (both parts), the venue
-  agreement, the Steam EULA, and the site ToS — and that the trademarks
-  are recited as owned by the entity.
+  agreement, the Steam EULA, and the site ToS.
+- Trademark ownership chain: the "Quantum Chess" mark is owned PERSONALLY
+  by Christopher Cantwell, not by the entity. For QRG to grant venue,
+  exhibit, and tournament licenses, paper a founder→company trademark
+  license (exclusive, with sublicensing rights and quality-control
+  provisions — both layers need quality control to avoid naked-licensing
+  abandonment risk). Also confirm who owns the other marks (Quantum
+  Native, Quantum Forge, Quantris, Ponq, Bloch Invaders) and whether any
+  are registered.
 
 - Patent posture: if Quantum Native holds patent claims covering quantum
   chess mechanics, (a) confirm MIT (no express patent grant) is preferred
