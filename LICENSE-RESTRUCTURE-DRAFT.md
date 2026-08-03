@@ -29,11 +29,11 @@ This file is the release checklist; the proposed license text is in
   chess mechanics, (a) confirm MIT (no express patent grant) is preferred
   over Apache-2.0 for the code layer, and (b) decide whether the Engine
   License should include an express no-patent-license clause.
-- Versions 0.1.x–0.3.0 were published with an unqualified `"license":
-  "MIT"` covering the whole package including the engine binary. We treat
-  that grant as irrevocable for those versions and are not attempting to
-  claw it back — confirm the "prior versions" note in the Engine License
-  handles this correctly.
+- Prior versions (0.2.0–0.3.0) shipped with an unqualified `"license":
+  "MIT"` package field and no engine carve-out. The package has
+  effectively no installed base (one known tester), so we're simply
+  correcting the metadata at vNEXT rather than adding prior-version
+  clarification language. Flag if you see a reason to do more.
 - Governing law / venue for the Engine License.
 - Whether "Engine Binary" should also enumerate hashes/filenames per
   release or the current definitional language suffices.

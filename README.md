@@ -294,7 +294,9 @@ New to Quantum Chess? Learn the rules and strategy at [chess.quantumnative.io](h
 
 ## License
 
-MIT -- see [LICENSE](LICENSE). The quantum simulation engine is compiled to WebAssembly (`qc-game.wasm`) and bundled with this package; it is built from a separately-licensed source.
+SDK code (TypeScript/JavaScript): MIT -- see [LICENSE](LICENSE).
+
+The bundled quantum engine binary (`dist/wasm/qc-game.wasm`) is proprietary to Quantum Native, built from closed source, and is not covered by the MIT license. It is provided with this SDK for community AI development -- building, testing, and running AI players for the official Quantum Chess app and sanctioned events. Express terms for the engine binary will accompany the next release; for any other use, contact licensing@quantumnative.io.
 
 ## Trademarks and intended use
 

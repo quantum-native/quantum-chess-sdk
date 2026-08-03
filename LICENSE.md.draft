@@ -92,31 +92,25 @@ No right or license is granted to any Quantum Native trademark, including
 expressly granted are reserved. [Counsel: decide whether to add an express
 statement that no patent license is granted.]
 
-### 5. Prior versions
-
-Versions of this package up to and including 0.3.0 were published under
-the MIT License without this Part B; this license applies to the Engine
-Binary distributed with this version and later versions.
-
-### 6. Termination
+### 5. Termination
 
 This license terminates automatically if you breach it. Upon termination
 you must stop using the Engine Binary and destroy your copies. Sections
-4, 7, and 8 survive termination.
+4, 6, and 7 survive termination.
 
-### 7. No warranty
+### 6. No warranty
 
 THE ENGINE BINARY IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
 EXPRESS OR IMPLIED.
 
-### 8. Limitation of liability
+### 7. Limitation of liability
 
 TO THE EXTENT PERMITTED BY LAW, QUANTUM NATIVE IS NOT LIABLE FOR ANY
 INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES ARISING FROM THE
 USE OF THE ENGINE BINARY, AND ITS AGGREGATE LIABILITY SHALL NOT EXCEED
 ONE HUNDRED US DOLLARS (USD 100).
 
-### 9. General
+### 8. General
 
 [Counsel: governing law and venue.] If any provision is unenforceable,
 the remainder stays in effect.
