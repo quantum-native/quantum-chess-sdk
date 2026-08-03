@@ -1,0 +1,122 @@
+# License — DRAFT (takes effect at vNEXT after counsel review)
+
+This package contains two separately licensed components:
+
+1. **SDK code** — all TypeScript/JavaScript source and declaration files
+   in this package — licensed under the **MIT License** (Part A).
+2. **Engine Binary** — the compiled quantum engine distributed with this
+   package as `dist/wasm/qc-game.wasm`, together with any successor or
+   replacement compiled engine artifacts distributed in future versions —
+   licensed under the **Quantum Native Engine License** (Part B). The MIT
+   License does NOT apply to the Engine Binary.
+
+---
+
+## Part A — MIT License (SDK code)
+
+MIT License
+
+Copyright (c) 2026 Quantum Native
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"),
+excluding the Engine Binary as defined above, to deal in the Software
+without restriction, including without limitation the rights to use, copy,
+modify, merge, publish, distribute, sublicense, and/or sell copies of the
+Software, and to permit persons to whom the Software is furnished to do so,
+subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+DEALINGS IN THE SOFTWARE.
+
+---
+
+## Part B — Quantum Native Engine License v1.0 (Engine Binary)
+
+Copyright (c) 2026 Quantum Native. All rights reserved.
+
+### 1. Definitions
+
+"Engine Binary" means the compiled quantum engine artifact(s) distributed
+with this package (currently `dist/wasm/qc-game.wasm`), in the form
+distributed. "SDK" means this npm package. "Official App" means the
+Quantum Chess applications and services operated by Quantum Native.
+"Sanctioned Event" means a tournament, exhibition, or competition
+authorized in writing by Quantum Native.
+
+### 2. Grant
+
+Quantum Native grants you a non-exclusive, non-transferable, royalty-free
+license to run the Engine Binary, as distributed with the SDK and invoked
+through the SDK's interfaces, solely to:
+
+(a) develop, test, train, and operate AI players, bots, and analysis
+    tools for Quantum Chess;
+(b) play, and prepare entries for, the Official App and Sanctioned
+    Events; and
+(c) conduct personal, educational, or research projects that are not
+    themselves a game, product, or service offered to others.
+
+### 3. Restrictions
+
+Except as expressly permitted above, you may not:
+
+(a) use the Engine Binary to power, in whole or in part, any other game,
+    application, product, or service — including any chess variant —
+    whether commercial or free;
+(b) redistribute the Engine Binary except unmodified and as an
+    unseparated part of this SDK package obtained from the public npm
+    registry;
+(c) reverse engineer, decompile, translate, or extract source code,
+    algorithms, or models from the Engine Binary, except to the extent a
+    law expressly permits despite this restriction;
+(d) modify the Engine Binary or remove or alter any notices; or
+(e) sublicense, rent, lease, or provide the Engine Binary as a hosted
+    service.
+
+Commercial and product licensing is available separately:
+licensing@quantumnative.io.
+
+### 4. Trademarks; no other rights
+
+No right or license is granted to any Quantum Native trademark, including
+"Quantum Chess", "Quantum Native", and "Quantum Forge". All rights not
+expressly granted are reserved. [Counsel: decide whether to add an express
+statement that no patent license is granted.]
+
+### 5. Prior versions
+
+Versions of this package up to and including 0.3.0 were published under
+the MIT License without this Part B; this license applies to the Engine
+Binary distributed with this version and later versions.
+
+### 6. Termination
+
+This license terminates automatically if you breach it. Upon termination
+you must stop using the Engine Binary and destroy your copies. Sections
+4, 7, and 8 survive termination.
+
+### 7. No warranty
+
+THE ENGINE BINARY IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+EXPRESS OR IMPLIED.
+
+### 8. Limitation of liability
+
+TO THE EXTENT PERMITTED BY LAW, QUANTUM NATIVE IS NOT LIABLE FOR ANY
+INDIRECT, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES ARISING FROM THE
+USE OF THE ENGINE BINARY, AND ITS AGGREGATE LIABILITY SHALL NOT EXCEED
+ONE HUNDRED US DOLLARS (USD 100).
+
+### 9. General
+
+[Counsel: governing law and venue.] If any provision is unenforceable,
+the remainder stays in effect.

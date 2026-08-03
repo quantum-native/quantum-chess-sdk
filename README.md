@@ -295,3 +295,9 @@ New to Quantum Chess? Learn the rules and strategy at [chess.quantumnative.io](h
 ## License
 
 MIT -- see [LICENSE](LICENSE). The quantum simulation engine is compiled to WebAssembly (`qc-game.wasm`) and bundled with this package; it is built from a separately-licensed source.
+
+## Trademarks and intended use
+
+This SDK exists so you can build AI players for the official Quantum Chess app and sanctioned events — that's what it's designed, documented, and supported for.
+
+**Quantum Chess** is a trademark of Quantum Native, as are Quantum Native and Quantum Forge. The MIT license above covers this package's code only. It does not grant any right to the Quantum Chess name or logos, to the official app and its services (ranked play, tournaments, puzzles, multiplayer), or to official content. Branding a product, service, event, or tournament with these marks requires a license — contact licensing@quantumnative.io.
