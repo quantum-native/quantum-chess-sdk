@@ -34,6 +34,12 @@ export type {
 // Engine
 export { QCEngine } from "./engine";
 
+// Measurement semantics — what a move's measurement actually asks, and how
+// likely it is to pass. UIs use these to show measurement effects on the
+// squares that are genuinely being measured, and to tell certain outcomes
+// from real collapses.
+export { isSuperposed, squaresBetween, measurementPassProbability, measurementCanCollapse } from "./measurement";
+
 // Rule presets — spread and override instead of hand-writing the object:
 //   new QCEngine(adapter, { ...DEFAULT_RULES, allowCastling: false })
 export { DEFAULT_RULES, CLASSICAL_RULES } from "./rules-presets";
