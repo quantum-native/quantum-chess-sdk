@@ -7,7 +7,9 @@ import type { RulesConfig } from "./core";
  */
 export const DEFAULT_RULES: RulesConfig = {
   quantumEnabled: true,
-  allowSplitMerge: true,
+  allowSplit: true,
+  allowMerge: true,
+  allowPhaseRotation: false,
   allowMeasurementAnnotations: true,
   allowCastling: true,
   allowEnPassant: true,
@@ -19,5 +21,7 @@ export const DEFAULT_RULES: RulesConfig = {
 export const CLASSICAL_RULES: RulesConfig = {
   ...DEFAULT_RULES,
   quantumEnabled: false,
-  allowSplitMerge: false,
+  allowSplit: false,
+  allowMerge: false,
+  allowPhaseRotation: false,
 };

@@ -39,6 +39,13 @@ export interface QChessMove {
   doesMeasurement: boolean;
   measurementOutcome: number;
   promotionPiece: number;
+  /**
+   * Phase rotation rider (Alchemy League ruleset): multiples of pi/2
+   * applied to the moving piece's destination square(s) after the move
+   * unitary. Range 0-3; absent or 0 means no rotation. Serialized as
+   * the `.p<k>` move-string suffix.
+   */
+  phaseQuarters?: number;
 }
 
 /**

@@ -5,6 +5,7 @@ export type GameModeId =
   | "ai_vs_ai"
   | "online_ranked"
   | "online_unranked"
+  | "alchemy_league"
   | "puzzle"
   | "tutorial"
   | "spectate"
@@ -28,7 +29,10 @@ export interface TimeControlConfig {
 
 export interface RulesConfig {
   quantumEnabled: boolean;
-  allowSplitMerge: boolean;
+  allowSplit: boolean;
+  allowMerge: boolean;
+  /** Moves may carry a pi/2-increment phase rotation (`.p<k>` suffix). */
+  allowPhaseRotation: boolean;
   allowMeasurementAnnotations: boolean;
   allowCastling: boolean;
   allowEnPassant: boolean;
@@ -67,12 +71,26 @@ export interface GameModeConfigOverrides {
 
 const BASE_RULES: RulesConfig = {
   quantumEnabled: true,
-  allowSplitMerge: true,
+  allowSplit: true,
+  allowMerge: true,
+  allowPhaseRotation: false,
   allowMeasurementAnnotations: true,
   allowCastling: true,
   allowEnPassant: true,
   allowPromotion: true,
   objective: "checkmate"
+};
+
+/**
+ * The Alchemy League runs seasonal experimental rulesets. Season 1:
+ * merge moves are removed and every move may carry a pi/2-increment
+ * phase rotation on the moving piece.
+ */
+export const ALCHEMY_SEASON_1_VARIANT: VariantDefinition = {
+  id: "alchemy-s1",
+  name: "Alchemy Season 1",
+  description: "No merge moves. Any move may add a phase rotation in increments of pi/2.",
+  ruleOverrides: { allowMerge: false, allowPhaseRotation: true }
 };
 
 function cloneModeConfig(config: GameModeConfig): GameModeConfig {
@@ -155,6 +173,19 @@ const PRESET_MAP: Record<GameModeId, GameModeConfig> = {
     matchmaking: "casual",
     startingPosition: "classical",
     timeControl: { initialSeconds: 900, incrementSeconds: 3, maxSeconds: 900 }
+  },
+  alchemy_league: {
+    modeId: "alchemy_league",
+    label: "Alchemy League",
+    players: [
+      { side: "white", control: "human_local" },
+      { side: "black", control: "human_remote" }
+    ],
+    rules: { ...BASE_RULES, ...ALCHEMY_SEASON_1_VARIANT.ruleOverrides },
+    matchmaking: "ranked",
+    startingPosition: "classical",
+    variantId: ALCHEMY_SEASON_1_VARIANT.id,
+    timeControl: { initialSeconds: 600, incrementSeconds: 5, maxSeconds: 600 }
   },
   puzzle: {
     modeId: "puzzle",
@@ -253,16 +284,22 @@ export function validateGameModeConfig(config: GameModeConfig): string[] {
     errors.push("players must include exactly one white and one black slot.");
   }
 
-  if (config.rules.allowSplitMerge && !config.rules.quantumEnabled) {
-    errors.push("allowSplitMerge requires quantumEnabled.");
+  if ((config.rules.allowSplit || config.rules.allowMerge) && !config.rules.quantumEnabled) {
+    errors.push("allowSplit/allowMerge require quantumEnabled.");
   }
 
-  if ((config.modeId === "online_ranked" || config.modeId === "online_unranked") && config.matchmaking === "none") {
+  if (config.rules.allowPhaseRotation && !config.rules.quantumEnabled) {
+    errors.push("allowPhaseRotation requires quantumEnabled.");
+  }
+
+  const isOnlineMode =
+    config.modeId === "online_ranked" || config.modeId === "online_unranked" || config.modeId === "alchemy_league";
+
+  if (isOnlineMode && config.matchmaking === "none") {
     errors.push("online modes must declare matchmaking.");
   }
 
-  if ((config.modeId === "online_ranked" || config.modeId === "online_unranked") &&
-      !config.players.some((player) => player.control === "human_remote")) {
+  if (isOnlineMode && !config.players.some((player) => player.control === "human_remote")) {
     errors.push("online modes require a remote player slot.");
   }
 
@@ -299,9 +336,9 @@ export function validateGameModeConfig(config: GameModeConfig): string[] {
     errors.push("tutorial mode requires tutorialId.");
   }
 
-  if (config.modeId === "online_ranked") {
+  if (config.modeId === "online_ranked" || config.modeId === "alchemy_league") {
     if (!config.timeControl) {
-      errors.push("online_ranked requires a time control.");
+      errors.push(`${config.modeId} requires a time control.`);
     }
   }
 

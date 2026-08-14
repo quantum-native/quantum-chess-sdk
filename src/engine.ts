@@ -13,6 +13,7 @@ import {
   remapPieceSymbol,
   updateFiftyMoveCounter,
   isLegalStandardMove,
+  legalTargetOptions,
   type QChessGameData,
   type QChessMove,
   type RulesConfig,
@@ -31,6 +32,12 @@ import type {
 } from "./types";
 
 export type MeasurementForceMode = "random" | "m0" | "m1";
+
+/** Clamp a choice's phase rider to a canonical integer in 0..3. */
+function normalizePhaseQuarters(raw: number | undefined): number {
+  if (!raw || !Number.isFinite(raw)) return 0;
+  return ((Math.round(raw) % 4) + 4) % 4;
+}
 
 // ---------------------------------------------------------------------------
 // Helpers (moved from apps/web/src/engine/actions.ts)
@@ -251,7 +258,7 @@ export class QCEngine {
 
   /** Build a read-only view of the current game state with all legal moves. */
   getView(ignoreTurnOrder?: boolean): QCEngineView {
-    const opts: LegalTargetOptions | undefined = ignoreTurnOrder ? { ignoreTurnOrder } : undefined;
+    const opts: LegalTargetOptions = legalTargetOptions(ignoreTurnOrder, this.rules);
     return {
       gameData: this.gameData,
       sideToMove: this.gameData.board.ply % 2 === 0 ? "white" : "black",
@@ -294,7 +301,7 @@ export class QCEngine {
 
   /** Check for stalemate (no legal moves). */
   checkStalemate(): boolean {
-    const moves = buildLegalMoveSet(this.gameData);
+    const moves = buildLegalMoveSet(this.gameData, legalTargetOptions(undefined, this.rules));
     return moves.count === 0;
   }
 
@@ -345,6 +352,17 @@ export class QCEngine {
    * This is the primary move execution method used by QCMatchRunner.
    */
   executeMove(choice: QCMoveChoice): QCMoveExecutionResult {
+    const ruleError = this.checkChoiceAgainstRules(choice);
+    if (ruleError) {
+      return {
+        success: false,
+        gameData: this.gameData,
+        moveRecord: { moveString: "", notation: "", ply: this.gameData.board.ply, wasBlocked: false, wasMeasurement: false },
+        measurementText: "",
+        error: ruleError
+      };
+    }
+
     // Whether this move's measurement can destroy amplitude has to be read
     // from the position before the move runs.
     const canCollapse = measurementCanCollapse(this.gameData, choice);
@@ -361,16 +379,17 @@ export class QCEngine {
     // Start recording quantum operations for undo
     this.quantum.startRecording();
 
+    const phaseQuarters = normalizePhaseQuarters(choice.phaseQuarters);
     let result: QCMoveExecutionResult;
     switch (choice.type) {
       case "standard":
-        result = this.executeStandardMove(choice.from, choice.to, choice.promotion);
+        result = this.executeStandardMove(choice.from, choice.to, choice.promotion, phaseQuarters);
         break;
       case "split":
-        result = this.executeSplitMove(choice.from, choice.targetA, choice.targetB);
+        result = this.executeSplitMove(choice.from, choice.targetA, choice.targetB, phaseQuarters);
         break;
       case "merge":
-        result = this.executeMergeMove(choice.sourceA, choice.sourceB, choice.to);
+        result = this.executeMergeMove(choice.sourceA, choice.sourceB, choice.to, phaseQuarters);
         break;
     }
 
@@ -486,10 +505,29 @@ export class QCEngine {
     this.undoStack = [];
   }
 
+  /**
+   * Reject a choice the active ruleset forbids. The legal move set is
+   * already gated the same way; this is the enforcement backstop for
+   * callers that bypass it (direct engine use, remote inputs).
+   */
+  private checkChoiceAgainstRules(choice: QCMoveChoice): string | null {
+    if (choice.phaseQuarters && !(this.rules.quantumEnabled && this.rules.allowPhaseRotation)) {
+      return "Phase rotation is not allowed by the active ruleset.";
+    }
+    if (choice.type === "split" && !(this.rules.quantumEnabled && this.rules.allowSplit)) {
+      return "Split moves are not allowed by the active ruleset.";
+    }
+    if (choice.type === "merge" && !(this.rules.quantumEnabled && this.rules.allowMerge)) {
+      return "Merge moves are not allowed by the active ruleset.";
+    }
+    return null;
+  }
+
   private executeStandardMove(
     source: number,
     target: number,
-    promotionPiece?: string
+    promotionPiece?: string,
+    phaseQuarters = 0
   ): QCMoveExecutionResult {
     const gameData = this.gameData;
     const movingPiece = gameData.board.pieces[source];
@@ -500,6 +538,7 @@ export class QCEngine {
       : "";
     const moveString = `${indexToSquareName(source)}-${indexToSquareName(target)}${epSuffix}${promoSuffix}`;
     const move = parseMoveString(moveString, gameData);
+    if (move && phaseQuarters) move.phaseQuarters = phaseQuarters;
 
     const legalOpts = this._ignoreTurnOrder ? { ignoreTurnOrder: true } : undefined;
     if (!move || !isLegalStandardMove(gameData, move, legalOpts)) {
@@ -577,7 +616,8 @@ export class QCEngine {
     }
     prunePiecesByProbabilities(nextData);
 
-    const appliedNotation = quantumResult.measured ? `${moveString}.m1` : moveString;
+    const phaseSuffix = move.phaseQuarters ? `.p${move.phaseQuarters}` : "";
+    const appliedNotation = `${quantumResult.measured ? `${moveString}.m1` : moveString}${phaseSuffix}`;
     nextData.position.history = [...gameData.position.history, appliedNotation];
     const record: QCMoveRecord = {
       moveString: appliedNotation,
@@ -596,7 +636,8 @@ export class QCEngine {
   private executeSplitMove(
     source: number,
     firstTarget: number,
-    secondTarget: number
+    secondTarget: number,
+    phaseQuarters = 0
   ): QCMoveExecutionResult {
     const gameData = this.gameData;
 
@@ -612,6 +653,7 @@ export class QCEngine {
     const sourcePiece = gameData.board.pieces[source];
     const moveString = `${indexToSquareName(source)}^${indexToSquareName(firstTarget)}${indexToSquareName(secondTarget)}`;
     const move = parseMoveString(moveString, gameData);
+    if (move && phaseQuarters) move.phaseQuarters = phaseQuarters;
     if (!move) {
       return {
         success: false,
@@ -651,7 +693,8 @@ export class QCEngine {
     remapPieceSymbol(nextData, sourcePiece, [move.square1, move.square2, move.square3]);
     prunePiecesByProbabilities(nextData);
 
-    const splitNotation = quantumResult.measured ? `${moveString}.m1` : moveString;
+    const splitPhaseSuffix = move.phaseQuarters ? `.p${move.phaseQuarters}` : "";
+    const splitNotation = `${quantumResult.measured ? `${moveString}.m1` : moveString}${splitPhaseSuffix}`;
     nextData.position.history = [...gameData.position.history, splitNotation];
     const record: QCMoveRecord = {
       moveString: splitNotation,
@@ -670,12 +713,14 @@ export class QCEngine {
   private executeMergeMove(
     sourceA: number,
     sourceB: number,
-    target: number
+    target: number,
+    phaseQuarters = 0
   ): QCMoveExecutionResult {
     const gameData = this.gameData;
     const sourcePiece = gameData.board.pieces[sourceA] !== "." ? gameData.board.pieces[sourceA] : gameData.board.pieces[sourceB];
     const moveString = `${indexToSquareName(sourceA)}${indexToSquareName(sourceB)}^${indexToSquareName(target)}`;
     const move = parseMoveString(moveString, gameData);
+    if (move && phaseQuarters) move.phaseQuarters = phaseQuarters;
 
     if (!move) {
       return {
@@ -716,7 +761,8 @@ export class QCEngine {
     remapPieceSymbol(nextData, sourcePiece, [move.square1, move.square2, move.square3]);
     prunePiecesByProbabilities(nextData);
 
-    const mergeNotation = quantumResult.measured ? `${moveString}.m1` : moveString;
+    const mergePhaseSuffix = move.phaseQuarters ? `.p${move.phaseQuarters}` : "";
+    const mergeNotation = `${quantumResult.measured ? `${moveString}.m1` : moveString}${mergePhaseSuffix}`;
     nextData.position.history = [...gameData.position.history, mergeNotation];
     const record: QCMoveRecord = {
       moveString: mergeNotation,

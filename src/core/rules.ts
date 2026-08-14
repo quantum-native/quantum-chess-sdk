@@ -12,6 +12,10 @@ import { MoveType, type QChessGameData, type QChessMove } from "./types";
 
 export interface LegalTargetOptions {
   ignoreTurnOrder?: boolean;
+  /** When false, getSplitTargets returns no targets (variant rules). Defaults to allowed. */
+  allowSplit?: boolean;
+  /** When false, getMergeTargets returns no targets (variant rules). Defaults to allowed. */
+  allowMerge?: boolean;
 }
 
 const KNIGHT_OFFSETS = [
@@ -275,7 +279,7 @@ export function getLegalTargets(gameData: QChessGameData, source: number, option
 }
 
 export function getSplitTargets(gameData: QChessGameData, source: number, options?: LegalTargetOptions): number[] {
-  if (!isOnBoard(source)) {
+  if (options?.allowSplit === false || !isOnBoard(source)) {
     return [];
   }
   const piece = gameData.board.pieces[source];
@@ -287,7 +291,7 @@ export function getSplitTargets(gameData: QChessGameData, source: number, option
 }
 
 export function getMergeTargets(gameData: QChessGameData, sourceA: number, sourceB: number, options?: LegalTargetOptions): number[] {
-  if (!isOnBoard(sourceA) || !isOnBoard(sourceB) || sourceA === sourceB) {
+  if (options?.allowMerge === false || !isOnBoard(sourceA) || !isOnBoard(sourceB) || sourceA === sourceB) {
     return [];
   }
   const pieceA = gameData.board.pieces[sourceA];
@@ -300,8 +304,11 @@ export function getMergeTargets(gameData: QChessGameData, sourceA: number, sourc
     return [];
   }
 
-  const firstTargets = getSplitTargets(gameData, sourceA, options);
-  const secondTargets = new Set(getSplitTargets(gameData, sourceB, options));
+  // Merge geometry derives from split geometry; a variant that disables
+  // split moves but allows merges must not have the split gate cascade.
+  const splitOpts = options ? { ...options, allowSplit: true } : undefined;
+  const firstTargets = getSplitTargets(gameData, sourceA, splitOpts);
+  const secondTargets = new Set(getSplitTargets(gameData, sourceB, splitOpts));
   return firstTargets.filter((target) => secondTargets.has(target));
 }
 

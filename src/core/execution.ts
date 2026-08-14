@@ -6,6 +6,7 @@
  */
 
 import { isWhitePiece, isBlackPiece } from "./board";
+import type { RulesConfig } from "./gameMode";
 import { clearCastlingRightsForSquare } from "./rules";
 import { cloneGameData, createEmptyGameData } from "./state";
 import { MoveType, type QChessGameData, type QChessMove } from "./types";
@@ -267,13 +268,15 @@ export function isCurrentTurnPiece(piece: string, ply: number, probability: numb
 export function selectPiece(
   gameData: QChessGameData,
   square: number,
-  ignoreTurnOrder?: boolean
+  ignoreTurnOrder?: boolean,
+  rules?: RulesConfig
 ): { legalTargets: number[]; splitTargets: number[] } | null {
   const piece = gameData.board.pieces[square];
   if (!ignoreTurnOrder && !isCurrentTurnPiece(piece, gameData.board.ply, gameData.board.probabilities[square])) {
     return null;
   }
-  const opts: LegalTargetOptions | undefined = ignoreTurnOrder ? { ignoreTurnOrder } : undefined;
+  const opts: LegalTargetOptions | undefined =
+    ignoreTurnOrder || rules ? legalTargetOptions(ignoreTurnOrder, rules) : undefined;
   const targets = getLegalTargets(gameData, square, opts);
   if (targets.length === 0) return null;
   return {
@@ -286,8 +289,21 @@ export function computeMergeTargets(
   gameData: QChessGameData,
   sourceA: number,
   sourceB: number,
-  ignoreTurnOrder?: boolean
+  ignoreTurnOrder?: boolean,
+  rules?: RulesConfig
 ): number[] {
-  const opts: LegalTargetOptions | undefined = ignoreTurnOrder ? { ignoreTurnOrder } : undefined;
+  const opts: LegalTargetOptions | undefined =
+    ignoreTurnOrder || rules ? legalTargetOptions(ignoreTurnOrder, rules) : undefined;
   return getMergeTargets(gameData, sourceA, sourceB, opts);
+}
+
+/** Fold variant rules into LegalTargetOptions for move generation. */
+export function legalTargetOptions(ignoreTurnOrder?: boolean, rules?: RulesConfig): LegalTargetOptions {
+  const opts: LegalTargetOptions = {};
+  if (ignoreTurnOrder) opts.ignoreTurnOrder = true;
+  if (rules) {
+    opts.allowSplit = rules.quantumEnabled && rules.allowSplit;
+    opts.allowMerge = rules.quantumEnabled && rules.allowMerge;
+  }
+  return opts;
 }

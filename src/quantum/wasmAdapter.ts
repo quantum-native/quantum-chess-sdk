@@ -55,6 +55,7 @@ interface QCGameInstance {
     type: number, variant: number,
     s1: number, s2: number, s3: number,
     doesMeasurement: boolean, measurementOutcome: number,
+    phaseQuarters: number,
   ): { applied: boolean; measured: boolean; measurementPassed: number };
   isFullyClassical(): boolean;
   hasSquareProperty(s: number): boolean;
@@ -180,6 +181,7 @@ export class QuantumChessQuantumAdapterWasm {
       move.square1, move.square2, move.square3 ?? -1,
       move.doesMeasurement ?? false,
       move.measurementOutcome ?? 0,
+      move.phaseQuarters ?? 0,
     );
     const passed: boolean | undefined =
       r.measurementPassed === -1 ? undefined : r.measurementPassed === 1;

@@ -2,7 +2,7 @@ import { getFile, getRank, indexToSquareName, isBlackPiece, isWhitePiece, square
 import { MoveType, MoveVariant, type QChessGameData, type QChessMove } from "./types";
 
 const MOVE_REGEX =
-  /^([pnbrqkPNBRQK]?)([a-h][1-8])([\^-]?)([wx]?)([a-h][1-8])(ep)?(\^)?([wx]?)([a-h][1-8])?([nbrqNBRQ])?(\.m[01])?$/;
+  /^([pnbrqkPNBRQK]?)([a-h][1-8])([\^-]?)([wx]?)([a-h][1-8])(ep)?(\^)?([wx]?)([a-h][1-8])?([nbrqNBRQ])?(\.m[01])?(\.p[1-3])?$/;
 
 function hasExclusivePath(source: number, target: number): boolean {
   const sourceFile = getFile(source);
@@ -159,6 +159,7 @@ export function parseMoveString(moveString: string, gameData?: QChessGameData): 
   const doesMeasurement = Boolean(match[11]);
   const measurementOutcome = match[11] === ".m1" ? 1 : 0;
   const promotionPiece = match[10] ? match[10].charCodeAt(0) : 0;
+  const phaseQuarters = match[12] ? Number(match[12].slice(2)) : 0;
 
   let type: MoveType;
   if (isSplit) {
@@ -185,7 +186,8 @@ export function parseMoveString(moveString: string, gameData?: QChessGameData): 
     variant,
     doesMeasurement,
     measurementOutcome,
-    promotionPiece
+    promotionPiece,
+    phaseQuarters
   };
 }
 
@@ -204,15 +206,16 @@ export function formatMoveString(move: QChessMove): string {
   const s2 = indexToSquareName(move.square2);
   const variant = variantToString(move.variant);
   const measure = move.doesMeasurement ? `.m${move.measurementOutcome}` : "";
+  const phase = move.phaseQuarters ? `.p${move.phaseQuarters}` : "";
   const promotion = move.promotionPiece ? String.fromCharCode(move.promotionPiece) : "";
 
   if (move.type === MoveType.SplitJump || move.type === MoveType.SplitSlide) {
     const s3 = indexToSquareName(move.square3);
-    return `${s1}^${variant}${s2}${s3}${measure}`;
+    return `${s1}^${variant}${s2}${s3}${measure}${phase}`;
   }
   if (move.type === MoveType.MergeJump || move.type === MoveType.MergeSlide) {
     const s3 = indexToSquareName(move.square3);
-    return `${s1}${s2}^${variant}${s3}${measure}`;
+    return `${s1}${s2}^${variant}${s3}${measure}${phase}`;
   }
-  return `${s1}${variant}${s2}${promotion}${measure}`;
+  return `${s1}${variant}${s2}${promotion}${measure}${phase}`;
 }

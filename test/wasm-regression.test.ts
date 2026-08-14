@@ -15,8 +15,13 @@ import {
   createPositionExplorer, DEFAULT_RULES, parsePositionString, toMoveChoice,
 } from "../src/index";
 
+// Must track RulesConfig in the vendored core. `allowSplitMerge` was split
+// into allowSplit/allowMerge/allowPhaseRotation; this file runs under tsx,
+// which transpiles without typechecking, so a stale shape here degrades the
+// suite silently rather than failing to compile.
 const RULES = {
-  quantumEnabled: true, allowSplitMerge: true, allowMeasurementAnnotations: true,
+  quantumEnabled: true, allowSplit: true, allowMerge: true, allowPhaseRotation: true,
+  allowMeasurementAnnotations: true,
   allowCastling: true, allowEnPassant: true, allowPromotion: true, objective: "checkmate" as const,
 };
 const sq = (s: string) => (s.charCodeAt(0) - 97) + (parseInt(s[1]) - 1) * 8;
@@ -105,6 +110,41 @@ async function main() {
     assert(DEFAULT_RULES.quantumEnabled === true, "DEFAULT_RULES exported");
     const p = parsePositionString("position fen 2KR2k1/5ppp/8/8/8/8/8/8 w - - 0 1 setup d8^d7g8");
     assert(p !== null && p.setupMoves?.[0] === "d8^d7g8", "parsePositionString round-trips setup");
+  }
+
+  // --- 7: the phase rider actually reaches the engine (8-arg applyMove) ---
+  // Guards the vendoring boundary. The TS side passing phaseQuarters and the
+  // wasm accepting an 8th argument have to ship together; vendoring a stale
+  // qc-game.wasm alongside new sources drops the rider silently, and every
+  // phased game would then diverge from the app. Splitting a branch back
+  // onto its own partner is the case where the rider moves probability, so
+  // the check is a board fact rather than an internal phase readout.
+  console.log("Test 7: phase rotation rider reaches the wasm engine");
+  {
+    const outcome = async (phaseQuarters: number) => {
+      const engine = new QCEngine(af(), RULES);
+      engine.initializeFromPosition({
+        startingFen: "4k3/8/8/8/8/8/8/1N2K3 w - - 0 1", history: [],
+      });
+      // b1 splits to a3/c3, then a3 splits again with c3 — its own partner —
+      // as a target, carrying the rider.
+      let r = engine.executeMove({ type: "split", from: sq("b1"), targetA: sq("a3"), targetB: sq("c3") });
+      assert(r.success, `split applied (k=${phaseQuarters})`);
+      r = engine.executeMove({
+        type: "split", from: sq("a3"), targetA: sq("c3"), targetB: sq("d4"), phaseQuarters,
+      });
+      assert(r.success, `phased split applied (k=${phaseQuarters})`);
+      const probs = engine.getGameData().board.probabilities;
+      return { partner: probs[sq("c3")], fresh: probs[sq("d4")] };
+    };
+
+    const off = await outcome(0);
+    assert(Math.abs(off.partner - 0.5) < 1e-6, "no rider: partner square is 50/50");
+    const quarter = await outcome(1);
+    assert(Math.abs(quarter.partner) < 1e-6, "rider pi/2: piece cannot land on its partner");
+    assert(Math.abs(quarter.fresh - 1) < 1e-6, "rider pi/2: piece lands wholly on the new square");
+    const threeQuarter = await outcome(3);
+    assert(Math.abs(threeQuarter.partner - 1) < 1e-6, "rider 3pi/2: piece lands wholly on its partner");
   }
 
   console.log(`\n${passed} passed, ${failed} failed`);

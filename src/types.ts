@@ -129,9 +129,13 @@ export interface QCMoveRecord {
 
 /** A player's move choice. One of three shapes depending on move type. */
 export type QCMoveChoice =
-  | { type: "standard"; from: number; to: number; promotion?: string; _forceMeasurement?: "m0" | "m1" }
-  | { type: "split"; from: number; targetA: number; targetB: number; _forceMeasurement?: "m0" | "m1" }
-  | { type: "merge"; sourceA: number; sourceB: number; to: number; _forceMeasurement?: "m0" | "m1" };
+  | { type: "standard"; from: number; to: number; promotion?: string; phaseQuarters?: number; _forceMeasurement?: "m0" | "m1" }
+  | { type: "split"; from: number; targetA: number; targetB: number; phaseQuarters?: number; _forceMeasurement?: "m0" | "m1" }
+  | { type: "merge"; sourceA: number; sourceB: number; to: number; phaseQuarters?: number; _forceMeasurement?: "m0" | "m1" };
+
+// phaseQuarters (Alchemy League rulesets): optional pi/2-increment phase
+// rotation applied to the moving piece. Only honored when the active
+// rules allow phase rotation; the engine rejects it otherwise.
 
 // NOTE: _forceMeasurement is an internal field used by RemoteHumanPlayer to pass
 // the server's authoritative measurement outcome. It is not part of the public API.
