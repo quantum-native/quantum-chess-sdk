@@ -1,7 +1,9 @@
 # DRAFT — split-license restructure for the next SDK release
 
-**Status: draft for lawyer review. Not in effect. Do not release the SDK
-with these files until counsel signs off.** Drafted 2026-08-03.
+**Status: applied in the repository on 2026-09-03 (LICENSE.md, package.json,
+README). It takes effect for users at the next published release. Counsel
+review is still wanted before that tag; the bracketed questions below are
+what to ask.** Drafted 2026-08-03.
 
 This file is the release checklist; the proposed license text is in
 `LICENSE.md.draft` alongside it. Neither file is in `package.json`

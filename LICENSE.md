@@ -1,4 +1,4 @@
-# License — DRAFT (takes effect at vNEXT after counsel review)
+# License
 
 This package contains two separately licensed components:
 
@@ -41,9 +41,10 @@ DEALINGS IN THE SOFTWARE.
 
 ## Part B — Quantum Native Engine License v1.0 (Engine Binary)
 
-Copyright (c) 2026 Quantum Realm Games (d/b/a Quantum Native). All rights
-reserved. References to "Quantum Native" in this license mean Quantum
-Realm Games.
+Copyright (c) 2026 Christopher Cantwell, doing business as Quantum Realm
+Games and Quantum Native. All rights reserved. References to "Quantum
+Native" in this license mean Christopher Cantwell d/b/a Quantum Realm
+Games.
 
 ### 1. Definitions
 
@@ -89,10 +90,10 @@ licensing@quantumnative.io.
 
 ### 4. Trademarks; no other rights
 
-No right or license is granted to any trademark, including "Quantum
-Chess" (a trademark of Christopher Cantwell, used under license by
-Quantum Realm Games), "Quantum Native", and "Quantum Forge". All rights
-not expressly granted are reserved. [Counsel: decide whether to add an
+No right or license is granted to any trademark, including QUANTUM
+CHESS® (a registered trademark of Christopher Cantwell, U.S. Reg. No.
+5,242,360), "Quantum Native", and "Quantum Forge". All rights not
+expressly granted are reserved.
 express statement that no patent license is granted.]
 
 ### 5. Termination
@@ -115,5 +116,4 @@ ONE HUNDRED US DOLLARS (USD 100).
 
 ### 8. General
 
-[Counsel: governing law and venue.] If any provision is unenforceable,
-the remainder stays in effect.
+If any provision is unenforceable, the remainder stays in effect.

@@ -2,8 +2,8 @@
   "name": "@quantum-native/quantum-chess-sdk",
   "version": "0.5.0",
   "type": "module",
-  "license": "MIT",
-  "description": "Player SDK for building Quantum Chess AIs — match runner, explorer, tournament system, reference AI",
+  "license": "SEE LICENSE IN LICENSE.md",
+  "description": "Player SDK for building Quantum Chess AIs \u2014 match runner, explorer, tournament system, reference AI",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/quantum-native/quantum-chess-sdk.git"
@@ -29,7 +29,7 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE.md"
   ],
   "scripts": {
     "build": "tsup",

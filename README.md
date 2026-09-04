@@ -294,12 +294,14 @@ New to Quantum Chess? Learn the rules and strategy at [chess.quantumnative.io](h
 
 ## License
 
-SDK code (TypeScript/JavaScript): MIT -- see [LICENSE](LICENSE).
+This package is split-licensed; see [LICENSE.md](LICENSE.md).
 
-The bundled quantum engine binary (`dist/wasm/qc-game.wasm`) is proprietary to Quantum Native, built from closed source, and is not covered by the MIT license. It is provided with this SDK for community AI development -- building, testing, and running AI players for the official Quantum Chess app and sanctioned events. Express terms for the engine binary will accompany the next release; for any other use, contact licensing@quantumnative.io.
+- **SDK code** (all TypeScript/JavaScript in this package): MIT.
+- **Engine binary** (`dist/wasm/qc-game.wasm`): proprietary. Built from closed source and licensed under the Quantum Native Engine License for community AI development, meaning building, testing and running AI players and analysis tools for Quantum Chess, entering the official app and sanctioned events, and personal, educational or research projects that are not themselves a product. Powering another game, product or service with it needs a separate license: licensing@quantumnative.io.
+
 
 ## Trademarks and intended use
 
 This SDK exists so you can build AI players for the official Quantum Chess app and sanctioned events — that's what it's designed, documented, and supported for.
 
-**Quantum Chess** is a trademark of Christopher Cantwell, used under license by Quantum Native; Quantum Native and Quantum Forge are trademarks of Quantum Native. The MIT license above covers this package's code only. It does not grant any right to these names or logos, to the official app and its services (ranked play, tournaments, puzzles, multiplayer), or to official content. Branding a product, service, event, or tournament with these marks requires a license — contact licensing@quantumnative.io.
+QUANTUM CHESS® is a registered trademark of Christopher Cantwell (U.S. Reg. No. 5,242,360); Quantum Native and Quantum Forge are trademarks of Quantum Native. Neither license in this package grants any right to these names or logos, to the official app and its services (ranked play, tournaments, puzzles, multiplayer), or to official content. Branding a product, service, event, or tournament with these marks requires a license from licensing@quantumnative.io.
