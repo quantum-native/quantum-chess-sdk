@@ -116,4 +116,4 @@ ONE HUNDRED US DOLLARS (USD 100).
 
 ### 8. General
 
-If any provision is unenforceable, the remainder stays in effect.
+This license is governed by the laws of the State of California, United States, without regard to its conflict-of-law rules. If any provision is unenforceable, the remainder stays in effect.
