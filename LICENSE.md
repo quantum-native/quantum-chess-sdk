@@ -16,7 +16,7 @@ This package contains two separately licensed components:
 
 MIT License
 
-Copyright (c) 2026 Quantum Native
+Copyright (c) 2026 Quantum Realm Games LLC
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"),
@@ -41,10 +41,9 @@ DEALINGS IN THE SOFTWARE.
 
 ## Part B — Quantum Native Engine License v1.0 (Engine Binary)
 
-Copyright (c) 2026 Christopher Cantwell, doing business as Quantum Realm
-Games and Quantum Native. All rights reserved. References to "Quantum
-Native" in this license mean Christopher Cantwell d/b/a Quantum Realm
-Games.
+Copyright (c) 2026 Quantum Realm Games LLC, doing business as Quantum
+Native. All rights reserved. References to "Quantum Native" in this
+license mean Quantum Realm Games LLC.
 
 ### 1. Definitions
 
@@ -92,7 +91,8 @@ licensing@quantumnative.io.
 
 No right or license is granted to any trademark, including QUANTUM
 CHESS® (a registered trademark of Christopher Cantwell, U.S. Reg. No.
-5,242,360), "Quantum Native", and "Quantum Forge". All rights not
+5,242,360, used under license by Quantum Realm Games LLC), "Quantum
+Native", and "Quantum Forge". All rights not
 expressly granted are reserved.
 express statement that no patent license is granted.]
 

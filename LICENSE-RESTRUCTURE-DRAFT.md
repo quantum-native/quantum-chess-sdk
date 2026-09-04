@@ -27,9 +27,11 @@ This file is the release checklist; the proposed license text is in
 
 ## Questions for counsel
 
-- Entity naming: Quantum Realm Games is a SOLE PROPRIETORSHIP — the legal
-  person behind QRG and the Quantum Native brand is Christopher Cantwell
-  individually, so licensor/copyright lines read "Christopher Cantwell,
+- Entity naming (corrected 2026-09-04): Quantum Realm Games is an LLC, doing
+  business as Quantum Native. Licensor and copyright lines name the LLC. The
+  QUANTUM CHESS mark is owned by Christopher Cantwell personally and licensed
+  to the LLC; that license should be in writing with a quality-control clause.
+  Superseded text follows: "Christopher Cantwell,
   d/b/a Quantum Realm Games / Quantum Native". Confirm this reading
   across LICENSE.md (both parts), the venue agreement, the Steam EULA,
   and the site ToS.
