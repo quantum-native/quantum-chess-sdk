@@ -6,6 +6,7 @@ export type GameModeId =
   | "online_ranked"
   | "online_unranked"
   | "alchemy_league"
+  | "tournament"
   | "puzzle"
   | "tutorial"
   | "spectate"
@@ -82,16 +83,41 @@ const BASE_RULES: RulesConfig = {
 };
 
 /**
- * The Alchemy League runs seasonal experimental rulesets. Season 1:
- * merge moves are removed and every move may carry a pi/2-increment
- * phase rotation on the moving piece.
+ * The three rules an Alchemy League season is allowed to change.
+ *
+ * The same triple the relay enforces on every move and the Convex season row
+ * stores, so a season is described identically everywhere it is read.
  */
-export const ALCHEMY_SEASON_1_VARIANT: VariantDefinition = {
-  id: "alchemy-s1",
-  name: "Alchemy Season 1",
-  description: "No merge moves. Any move may add a phase rotation in increments of pi/2.",
-  ruleOverrides: { allowMerge: false, allowPhaseRotation: true }
-};
+export interface VariantGates {
+  allowSplit: boolean;
+  allowMerge: boolean;
+  allowPhaseRotation: boolean;
+}
+
+/**
+ * Build the variant for a league season from the gates the server reported.
+ *
+ * There is deliberately no constant for the current season here. Hardcoding
+ * one is how a client ends up playing last season's rules and reporting the
+ * game as this season's: the season is data, it lives on the season row, and
+ * it reaches the client through the active-season query. The league mode
+ * preset below carries standard rules until this is applied to it.
+ */
+export function variantFromSeasonGates(
+  variantId: string,
+  gates: VariantGates,
+  name?: string
+): VariantDefinition {
+  return {
+    id: variantId,
+    name: name ?? variantId,
+    ruleOverrides: {
+      allowSplit: gates.allowSplit,
+      allowMerge: gates.allowMerge,
+      allowPhaseRotation: gates.allowPhaseRotation
+    }
+  };
+}
 
 function cloneModeConfig(config: GameModeConfig): GameModeConfig {
   return {
@@ -181,10 +207,33 @@ const PRESET_MAP: Record<GameModeId, GameModeConfig> = {
       { side: "white", control: "human_local" },
       { side: "black", control: "human_remote" }
     ],
-    rules: { ...BASE_RULES, ...ALCHEMY_SEASON_1_VARIANT.ruleOverrides },
+    // Standard rules, and no variantId, until the season's are applied with
+    // `variantFromSeasonGates`. The preset cannot name a season's rules: it
+    // is compiled into the client, and a client is exactly the thing that
+    // goes stale when a new season opens.
+    rules: { ...BASE_RULES },
     matchmaking: "ranked",
     startingPosition: "classical",
-    variantId: ALCHEMY_SEASON_1_VARIANT.id,
+    timeControl: { initialSeconds: 600, incrementSeconds: 5, maxSeconds: 600 }
+  },
+  tournament: {
+    modeId: "tournament",
+    label: "Tournament",
+    players: [
+      { side: "white", control: "human_local" },
+      { side: "black", control: "human_remote" }
+    ],
+    // Standard rules and no variantId until the event's are applied. Same
+    // reason as the league preset above: the rules an event is played under
+    // live on the tournament row and reach the client through the query, so
+    // a client compiled before the event was created still plays it right.
+    rules: { ...BASE_RULES },
+    // Declared the way the league declares it: an event pairs its entrants
+    // and its results move a standing, so the seat is competitive rather
+    // than casual. The pairing itself is the tournament's, not the queue's —
+    // nothing in the client reads this field to decide how to find a game.
+    matchmaking: "ranked",
+    startingPosition: "classical",
     timeControl: { initialSeconds: 600, incrementSeconds: 5, maxSeconds: 600 }
   },
   puzzle: {
@@ -232,6 +281,28 @@ const PRESET_MAP: Record<GameModeId, GameModeConfig> = {
     startingPosition: "custom"
   }
 };
+
+/**
+ * Whether `modeId` is one of the four live online modes, each of which pairs
+ * the local player against a remote human: ranked, unranked, the Alchemy
+ * League, and tournament play. Does NOT include `correspondence` — that's
+ * not a `GameModeId` at all (it's a separate synthetic strategy-dispatch
+ * string used only by `apps/web/src/controllers/modeStrategies`) and
+ * `spectate` has nobody on "your" side of the board.
+ *
+ * This predicate is the single source of truth for that four-mode set.
+ * Every call site that used to spell out the union inline must go through
+ * this function so a new online mode can't be added without updating every
+ * site by hand.
+ */
+export function isOnlineHumanMode(modeId: GameModeId): boolean {
+  return (
+    modeId === "online_ranked" ||
+    modeId === "online_unranked" ||
+    modeId === "alchemy_league" ||
+    modeId === "tournament"
+  );
+}
 
 export function listGameModePresets(): GameModeConfig[] {
   return (Object.keys(PRESET_MAP) as GameModeId[]).map((modeId) => cloneModeConfig(PRESET_MAP[modeId]));
@@ -292,8 +363,7 @@ export function validateGameModeConfig(config: GameModeConfig): string[] {
     errors.push("allowPhaseRotation requires quantumEnabled.");
   }
 
-  const isOnlineMode =
-    config.modeId === "online_ranked" || config.modeId === "online_unranked" || config.modeId === "alchemy_league";
+  const isOnlineMode = isOnlineHumanMode(config.modeId);
 
   if (isOnlineMode && config.matchmaking === "none") {
     errors.push("online modes must declare matchmaking.");
@@ -336,7 +406,11 @@ export function validateGameModeConfig(config: GameModeConfig): string[] {
     errors.push("tutorial mode requires tutorialId.");
   }
 
-  if (config.modeId === "online_ranked" || config.modeId === "alchemy_league") {
+  if (
+    config.modeId === "online_ranked" ||
+    config.modeId === "alchemy_league" ||
+    config.modeId === "tournament"
+  ) {
     if (!config.timeControl) {
       errors.push(`${config.modeId} requires a time control.`);
     }

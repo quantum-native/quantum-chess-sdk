@@ -9,3 +9,4 @@ export * from "./parityMatrix";
 export * from "./pgn";
 export * from "./quantum-port";
 export * from "./san";
+export * from "./takeback";

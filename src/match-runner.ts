@@ -79,8 +79,8 @@ export class QCMatchRunner {
     }
 
     if (config.timeControl) {
-      this.whiteMs = config.timeControl.initialSeconds * 1000;
-      this.blackMs = config.timeControl.initialSeconds * 1000;
+      this.whiteMs = config.clocks?.whiteMs ?? config.timeControl.initialSeconds * 1000;
+      this.blackMs = config.clocks?.blackMs ?? config.timeControl.initialSeconds * 1000;
     }
   }
 
@@ -342,8 +342,25 @@ export class QCMatchRunner {
           console.warn(`[QCMatchRunner] Win detected: ${winResult} after ply ${gd.board.ply}. Move: ${result.moveRecord.moveString}`);
           console.warn(`[QCMatchRunner] Pieces:`, gd.board.pieces.join(""));
           console.warn(`[QCMatchRunner] Probs:`, gd.board.probabilities.map(p => p.toFixed(2)).join(","));
+          if (winResult === "draw") {
+            // Mutual annihilation: one measurement removed both kings.
+            return this.endGame("draw", "annihilation", onEvent, undefined, peaks);
+          }
           const winner = winResult === "white_win" ? "white" : "black";
-          return this.endGame(winner, "checkmate", onEvent, undefined, peaks);
+          // "checkmate" means the winning move took the king off his square;
+          // "measurement" means a collapse removed him without the move
+          // landing on him (the Copenhagen ending). Classified by what the
+          // move captured, NOT by whether it measured: a slide that measures
+          // its way through a superposed blocker and takes the king is still
+          // a capture (that one is the Tunneling feat, not Copenhagen).
+          // Known coarseness, accepted: a move onto the last surviving
+          // branch of a half-captured king whose measurement finds him
+          // already gone still reads as a capture here — the record cannot
+          // tell that sub-case apart, and attacking the king's own square
+          // reads as a capture win to the player anyway.
+          const kingCaptured =
+            (result.moveRecord.capturedPiece ?? "").toLowerCase() === "k";
+          return this.endGame(winner, kingCaptured ? "checkmate" : "measurement", onEvent, undefined, peaks);
         }
 
         // Check fifty-move rule

@@ -18,7 +18,9 @@ import {
   type QChessMove,
   type RulesConfig,
   type LegalTargetOptions,
-  MoveVariant
+  MoveVariant,
+  MoveType,
+  slidePathSquares
 } from "./core";
 import type { QuantumChessAdapter, QuantumMoveResult } from "./quantum";
 import { buildLegalMoveSet } from "./legal-moves";
@@ -294,8 +296,8 @@ export class QCEngine {
     return this.moveHistory.map((r) => r.moveString);
   }
 
-  /** Check for king capture. */
-  checkWinCondition(): "white_win" | "black_win" | null {
+  /** Check for king capture ("draw" = mutual annihilation). */
+  checkWinCondition(): "white_win" | "black_win" | "draw" | null {
     return detectKingCapture(this.gameData);
   }
 
@@ -532,6 +534,9 @@ export class QCEngine {
     const gameData = this.gameData;
     const movingPiece = gameData.board.pieces[source];
     const targetPiece = gameData.board.pieces[target];
+    // Captured BEFORE applyQuantumMove: syncProbabilitiesFromQuantum below
+    // overwrites gameData's probabilities in place with the post-move state.
+    const moverWasSuperposed = gameData.board.probabilities[source] < 1 - 1e-6;
     const epSuffix = gameData.board.enPassantSquare === target && movingPiece.toLowerCase() === "p" ? "ep" : "";
     const promoSuffix = promotionPiece
       ? (movingPiece === movingPiece.toUpperCase() ? promotionPiece.toUpperCase() : promotionPiece.toLowerCase())
@@ -549,6 +554,20 @@ export class QCEngine {
         measurementText: ""
       };
     }
+
+    // Read before applyQuantumMove for the same reason as moverWasSuperposed:
+    // the probabilities are overwritten in place below. A legal slide can only
+    // have superposed occupants strictly between source and target (a full
+    // piece there makes it illegal), so occupancy on the path means the
+    // exclusion measurement had something to interrogate.
+    const targetWasOccupied = gameData.board.probabilities[target] > 1e-6;
+    const isWhiteMover = movingPiece === movingPiece.toUpperCase();
+    const pathHadSuperposedPiece =
+      move.type === MoveType.Slide &&
+      slidePathSquares(source, target).some((sq) => {
+        const p = gameData.board.probabilities[sq];
+        return p > 1e-6 && p < 1 - 1e-6;
+      });
 
     const quantumResult = this.applyQuantumMove(move, gameData);
     if (!quantumResult) {
@@ -590,6 +609,7 @@ export class QCEngine {
           wasBlocked: true,
           wasMeasurement: true,
           measurementPassed: false,
+          moverWasSuperposed,
           probabilitiesAfter: [...next.board.probabilities]
         };
         this.gameData = next;
@@ -626,6 +646,14 @@ export class QCEngine {
       wasBlocked: false,
       wasMeasurement: quantumResult.measured,
       measurementPassed: quantumResult.measured ? true : undefined,
+      moverWasSuperposed,
+      capturedPiece: targetWasOccupied
+        ? targetPiece
+        : epSuffix
+          ? (isWhiteMover ? "p" : "P")
+          : undefined,
+      slidThroughSuperposed:
+        pathHadSuperposedPiece && quantumResult.measured ? true : undefined,
       probabilitiesAfter: [...nextData.board.probabilities]
     };
     this.gameData = nextData;

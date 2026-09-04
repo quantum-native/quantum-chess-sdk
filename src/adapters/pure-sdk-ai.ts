@@ -755,8 +755,10 @@ export class PureSDKAdapter implements QCPlayer {
     const { gameData } = explorer.view;
     const eval_ = explorer.evaluate();
 
-    // Check for terminal positions
-    if (eval_.isCheckmate) return eval_.score > 0 ? 99999 : -99999;
+    // Check for terminal positions (score 0 = mutual-annihilation draw)
+    if (eval_.isCheckmate) {
+      return eval_.score > 0 ? 99999 : eval_.score < 0 ? -99999 : 0;
+    }
     if (eval_.isStalemate) return 0;
 
     let score = 0;

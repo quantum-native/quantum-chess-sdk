@@ -123,6 +123,29 @@ export interface QCMoveRecord {
   /** If measured, whether the measurement passed. */
   measurementPassed?: boolean;
 
+  /**
+   * Whether the moving piece was in superposition (source-square probability
+   * below 1) when this move was played. Standard moves only; absent means
+   * unknown. Feeds the Cheshire Cat feat and the Superposition Strike
+   * achievement.
+   */
+  moverWasSuperposed?: boolean;
+
+  /**
+   * The piece symbol the applied move took: the piece standing on the target
+   * square before the move (the pawn removed by en passant). Absent when the
+   * move captured nothing. Feeds game-end classification (a king here means
+   * the game ended by capture, not collapse) and the Tunneling feat.
+   */
+  capturedPiece?: string;
+
+  /**
+   * The move was a slide whose path crossed at least one superposed piece
+   * and whose exclusion measurement let the mover through. Feeds the
+   * Tunneling feat: sliding through a piece in superposition.
+   */
+  slidThroughSuperposed?: boolean;
+
   /** Piece probabilities after this move (64 floats). */
   probabilitiesAfter?: number[];
 }
@@ -293,6 +316,10 @@ export interface QCGameResult {
   winner: "white" | "black" | "draw";
   reason:
     | "checkmate"
+    /** A measurement collapsed the losing king out of existence. */
+    | "measurement"
+    /** Mutual annihilation: one measurement removed both kings. Draw. */
+    | "annihilation"
     | "resignation"
     | "timeout"
     | "stalemate"
@@ -356,6 +383,14 @@ export interface QCMatchConfig {
   black: QCPlayer;
   rules: RulesConfig;
   timeControl?: TimeControlConfig;
+  /**
+   * Remaining time on each clock when the match starts, for a match that
+   * resumes or rebuilds a game in progress (reconnect, resync, takeback).
+   * Without it the runner starts both clocks from `timeControl`'s initial
+   * time, and its next clock event hands both sides a full clock back.
+   * Ignored without `timeControl`.
+   */
+  clocks?: { whiteMs: number; blackMs: number };
   /** Safety limit. Default 500. */
   maxPly?: number;
   /** Custom starting position. Default: classical start. */

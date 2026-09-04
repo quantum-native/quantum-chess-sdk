@@ -1,5 +1,51 @@
 # Changelog
 
+## 0.6.0 (2026-09-04)
+
+**License: the package is now explicitly split-licensed.** The TypeScript
+and JavaScript in this package stay MIT. The engine binary
+(`dist/wasm/qc-game.wasm`) is proprietary, built from closed source, and
+licensed under the Quantum Native Engine License for community AI
+development: building and running AI players and analysis tools for Quantum
+Chess, entering the official app and sanctioned events, and personal,
+educational or research projects that are not themselves a product. Powering
+another game, product or service with it needs a separate license. Read
+[LICENSE.md](LICENSE.md); `package.json` now says `SEE LICENSE IN
+LICENSE.md` instead of `MIT`. The licensor is Quantum Realm Games LLC, doing
+business as Quantum Native, and governing law is California.
+
+**Breaking: `ALCHEMY_SEASON_1_VARIANT` is gone.** A league season is data on
+the server, not a constant in the SDK. Build the variant from the gates the
+active-season query reports with `variantFromSeasonGates(variantId, gates)`;
+`VariantGates` is `{ allowSplit, allowMerge, allowPhaseRotation }`.
+
+**Breaking: `detectKingCapture` can return `"draw"`.** One measurement
+removing both kings is mutual annihilation and a draw, not a white win.
+Callers that switch on the result need the new case.
+
+Game-end reasons grew two values: `"measurement"` (a collapse removed the
+losing king without the move landing on him) and `"annihilation"` (both
+kings gone). `"checkmate"` now means the winning move took the king off his
+square.
+
+Move records carry three optional fields: `capturedPiece` (the symbol the
+move took), `moverWasSuperposed`, and `slidThroughSuperposed`.
+
+`QCMatchConfig.clocks` (`{ whiteMs, blackMs }`) starts a match with the
+remaining time of a game in progress instead of the time control's initial
+time. `takebackPlyCount(ply, requester)` says how many plies an agreed
+takeback rewinds. `isOnlineHumanMode` and `slidePathSquares` are exported.
+
+## 0.5.0 (2026-08-15)
+
+Pi/2 phase rider on moves and a split rules config. Shipped without a
+changelog entry; see the tag.
+
+## 0.4.1 (2026-08-10)
+
+Engine glue rebuilt without dynamic code evaluation. Shipped without a
+changelog entry; see the tag.
+
 ## 0.3.0 (2026-07-30)
 
 Explorer correctness. Every fix here changed behaviour that previously looked

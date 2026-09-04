@@ -172,6 +172,7 @@ export class QCExplorerImpl implements QCExplorer {
     return {
       score: kingCapture === "white_win" ? 10000
            : kingCapture === "black_win" ? -10000
+           : kingCapture === "draw" ? 0
            : materialBalance,
       materialBalance,
       isCheckmate: kingCapture !== null,

@@ -26,6 +26,22 @@ function hasExclusivePath(source: number, target: number): boolean {
   return Math.max(absFileDelta, absRankDelta) > 1;
 }
 
+/**
+ * Squares strictly between source and target along a rook/bishop line, in
+ * order from source to target. Empty when the squares do not share a line or
+ * are adjacent — the same geometry hasExclusivePath answers true/false for.
+ * These are the squares a Slide move's exclusion measurement can interrogate.
+ */
+export function slidePathSquares(source: number, target: number): number[] {
+  if (!hasExclusivePath(source, target)) return [];
+  const fileStep = Math.sign(getFile(target) - getFile(source));
+  const rankStep = Math.sign(getRank(target) - getRank(source));
+  const step = rankStep * 8 + fileStep;
+  const squares: number[] = [];
+  for (let sq = source + step; sq !== target; sq += step) squares.push(sq);
+  return squares;
+}
+
 function parseVariant(raw: string): MoveVariant {
   if (raw === "x") {
     return MoveVariant.Capture;

@@ -37,6 +37,12 @@ export class WorkerPlayerAdapter implements QCPlayer {
     this.description = options.description;
   }
 
+  /**
+   * See ModuleWorkerPlayer.inFlight: the reply to a chooseMove is the next
+   * message, so a second request must wait out a superseded first one.
+   */
+  private inFlight: Promise<unknown> = Promise.resolve();
+
   async initialize(): Promise<void> {
     this.worker = new Worker(this.workerUrl, { type: "module" });
   }
@@ -47,7 +53,14 @@ export class WorkerPlayerAdapter implements QCPlayer {
     clock: QCClock | null
   ): Promise<QCMoveChoice> {
     if (!this.worker) throw new Error("Worker not initialized");
+    const send = () => this.postChooseMove(view, clock);
+    const run = this.inFlight.then(send, send);
+    this.inFlight = run.then(() => undefined, () => undefined);
+    return run;
+  }
 
+  private postChooseMove(view: QCEngineView, clock: QCClock | null): Promise<QCMoveChoice> {
+    if (!this.worker) throw new Error("Worker not initialized");
     return new Promise<QCMoveChoice>((resolve, reject) => {
       const handler = (e: MessageEvent) => {
         this.worker!.removeEventListener("message", handler);

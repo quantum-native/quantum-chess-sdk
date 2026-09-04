@@ -209,7 +209,9 @@ export function applyClassicalShadowMove(gameData: QChessGameData, move: QChessM
 // Win condition detection
 // ---------------------------------------------------------------------------
 
-export function detectKingCapture(gameData: QChessGameData): "white_win" | "black_win" | null {
+export function detectKingCapture(
+  gameData: QChessGameData,
+): "white_win" | "black_win" | "draw" | null {
   let whiteKingAlive = false;
   let blackKingAlive = false;
   for (let sq = 0; sq < 64; sq++) {
@@ -217,6 +219,10 @@ export function detectKingCapture(gameData: QChessGameData): "white_win" | "blac
     if (gameData.board.pieces[sq] === "K") whiteKingAlive = true;
     if (gameData.board.pieces[sq] === "k") blackKingAlive = true;
   }
+  // Mutual annihilation — one measurement removed both kings — is a draw
+  // (rules decision, Chris 2026-08-18). Checked first: the old order made
+  // the double death a white win by accident of check order.
+  if (!whiteKingAlive && !blackKingAlive) return "draw";
   if (!blackKingAlive) return "white_win";
   if (!whiteKingAlive) return "black_win";
   return null;

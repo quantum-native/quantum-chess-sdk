@@ -30,6 +30,14 @@ export class ModuleWorkerPlayer implements QCPlayer {
 
   private worker: Worker | null = null;
   private initialized = false;
+  /**
+   * The worker protocol has no request ids: a reply is whatever message
+   * arrives next. So requests are serialized — a chooseMove issued while an
+   * earlier one is still being computed (an undo or restart superseded the
+   * runner that asked) waits for that stale answer to arrive and be discarded
+   * before it posts, or the stale answer would be taken as its own.
+   */
+  private inFlight: Promise<unknown> = Promise.resolve();
 
   constructor(
     private readonly url: string,
@@ -56,7 +64,7 @@ export class ModuleWorkerPlayer implements QCPlayer {
     _explorer: QCExplorer | null,
     clock: QCClock | null
   ): Promise<QCMoveChoice> {
-    const response = await this.request({ type: "chooseMove", view, clock });
+    const response = await this.serialized(() => this.request({ type: "chooseMove", view, clock }));
     if (response.type !== "move") throw new Error("Custom AI worker did not return a move.");
     return response.choice;
   }
@@ -73,6 +81,12 @@ export class ModuleWorkerPlayer implements QCPlayer {
     this.worker?.terminate();
     this.worker = null;
     this.initialized = false;
+  }
+
+  private serialized<T>(send: () => Promise<T>): Promise<T> {
+    const run = this.inFlight.then(send, send);
+    this.inFlight = run.then(() => undefined, () => undefined);
+    return run;
   }
 
   private request(message: unknown): Promise<WorkerResponse> {
