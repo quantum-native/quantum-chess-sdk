@@ -40,12 +40,19 @@ export interface QChessMove {
   measurementOutcome: number;
   promotionPiece: number;
   /**
-   * Phase rotation rider (Alchemy League ruleset): multiples of pi/2
-   * applied to the moving piece's destination square(s) after the move
-   * unitary. Range 0-3; absent or 0 means no rotation. Serialized as
-   * the `.p<k>` move-string suffix.
+   * Phase rotation rider, in quarter turns (pi/2) in [0, 4): applied to the
+   * moving piece's destination square(s) after the move unitary, or to the
+   * source before a split. Absent or 0 means no rotation. Alchemy League
+   * allows whole quarters (`.p<k>`); Universal QC any angle (`.a<millidegrees>`).
    */
   phaseQuarters?: number;
+  /**
+   * Split strength (Universal QC): the fraction of a split's first iSwap,
+   * source to square2, or of a merge's last iSwap, square1 to the target,
+   * negated. A merge at strength f undoes a split at strength f. Absent means
+   * the standard 0.5. Serialized as `.s<fraction x 10000>`.
+   */
+  splitFraction?: number;
 }
 
 /**

@@ -34,6 +34,14 @@ export interface RulesConfig {
   allowMerge: boolean;
   /** Moves may carry a pi/2-increment phase rotation (`.p<k>` suffix). */
   allowPhaseRotation: boolean;
+  /** Universal QC: the phase rider takes any angle (`.a<millidegrees>`), not just quarter turns. */
+  phaseAnyAngle?: boolean;
+  /**
+   * Universal QC: a split or merge may set its strength (`.s<n>`), the fraction
+   * of the iSwap between the source and the first target (or the first source
+   * and the target, for a merge).
+   */
+  allowSplitStrength?: boolean;
   allowMeasurementAnnotations: boolean;
   allowCastling: boolean;
   allowEnPassant: boolean;
@@ -118,6 +126,22 @@ export function variantFromSeasonGates(
     }
   };
 }
+
+/**
+ * Universal QC, the premium lab ruleset: the phase dial takes any angle and a
+ * split takes any strength. With those two riders the rules are a universal
+ * gate set on dual-rail qubits (docs/reports/2026-09-24-universal-qc-proof.html).
+ */
+export const UNIVERSAL_QC_VARIANT: VariantDefinition = {
+  id: "universal_qc",
+  name: "Universal QC",
+  description: "Any phase angle on any move, any strength on any split or merge.",
+  ruleOverrides: {
+    allowPhaseRotation: true,
+    phaseAnyAngle: true,
+    allowSplitStrength: true
+  }
+};
 
 function cloneModeConfig(config: GameModeConfig): GameModeConfig {
   return {
@@ -361,6 +385,14 @@ export function validateGameModeConfig(config: GameModeConfig): string[] {
 
   if (config.rules.allowPhaseRotation && !config.rules.quantumEnabled) {
     errors.push("allowPhaseRotation requires quantumEnabled.");
+  }
+
+  if (config.rules.phaseAnyAngle && !config.rules.allowPhaseRotation) {
+    errors.push("phaseAnyAngle requires allowPhaseRotation.");
+  }
+
+  if (config.rules.allowSplitStrength && !config.rules.allowSplit && !config.rules.allowMerge) {
+    errors.push("allowSplitStrength requires allowSplit or allowMerge.");
   }
 
   const isOnlineMode = isOnlineHumanMode(config.modeId);

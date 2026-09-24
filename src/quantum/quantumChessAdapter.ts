@@ -26,6 +26,13 @@ export interface QuantumChessAdapter {
 
   // Move execution + queries.
   applyMove(move: QChessMove): QuantumMoveResult;
+  /**
+   * Upper bound on the basis states of the entangled component `move` would
+   * leave behind. Compare with maxStateSize() before applying the move.
+   */
+  stateSizeBound(move: QChessMove): number;
+  /** The simulator's cap on basis states in one entangled component. */
+  maxStateSize(): number;
   getExistenceProbability(square: number): number;
   /** Sum of all squares' existence probabilities. Used to detect collapsed states. */
   getTotalProbability(): number;

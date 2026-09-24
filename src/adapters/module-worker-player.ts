@@ -7,6 +7,7 @@ import type {
   QCMoveRecord,
   QCPlayer
 } from "../types";
+import { SerialQueue } from "../serial-queue";
 
 type WorkerResponse =
   | { type: "initialized"; name: string; author?: string; description?: string; quantumEnabled?: boolean }
@@ -37,7 +38,7 @@ export class ModuleWorkerPlayer implements QCPlayer {
    * runner that asked) waits for that stale answer to arrive and be discarded
    * before it posts, or the stale answer would be taken as its own.
    */
-  private inFlight: Promise<unknown> = Promise.resolve();
+  private readonly requests = new SerialQueue();
 
   constructor(
     private readonly url: string,
@@ -50,7 +51,7 @@ export class ModuleWorkerPlayer implements QCPlayer {
   async initialize(): Promise<void> {
     if (this.initialized) return;
     this.worker = new Worker(new URL("./module-worker-runtime.ts", import.meta.url), { type: "module" });
-    const response = await this.request({ type: "initialize", url: this.url });
+    const response = await this.requests.run(() => this.request({ type: "initialize", url: this.url }));
     if (response.type !== "initialized") throw new Error("Custom AI worker did not initialize.");
     this.name = response.name;
     this.author = response.author;
@@ -64,7 +65,7 @@ export class ModuleWorkerPlayer implements QCPlayer {
     _explorer: QCExplorer | null,
     clock: QCClock | null
   ): Promise<QCMoveChoice> {
-    const response = await this.serialized(() => this.request({ type: "chooseMove", view, clock }));
+    const response = await this.requests.run(() => this.request({ type: "chooseMove", view, clock }));
     if (response.type !== "move") throw new Error("Custom AI worker did not return a move.");
     return response.choice;
   }
@@ -81,12 +82,6 @@ export class ModuleWorkerPlayer implements QCPlayer {
     this.worker?.terminate();
     this.worker = null;
     this.initialized = false;
-  }
-
-  private serialized<T>(send: () => Promise<T>): Promise<T> {
-    const run = this.inFlight.then(send, send);
-    this.inFlight = run.then(() => undefined, () => undefined);
-    return run;
   }
 
   private request(message: unknown): Promise<WorkerResponse> {

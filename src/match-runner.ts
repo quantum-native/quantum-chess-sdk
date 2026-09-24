@@ -254,7 +254,6 @@ export class QCMatchRunner {
       let result: QCMoveExecutionResult;
       try {
         result = engine.executeMove(choice);
-        consecutiveErrors = 0;
       } catch (err) {
         consecutiveErrors++;
         const msg = (err as Error)?.message ?? String(err);
@@ -286,8 +285,21 @@ export class QCMatchRunner {
 
       if (!result.success) {
         if (result.error) {
-          // Forced measurement was impossible — let the player try again
+          // The engine refused the move (an impossible forced measurement, or
+          // a state past the simulator's cap): let the player try again. A
+          // human picks another move; an AI may pick the same one forever,
+          // so its refusals count toward the error limit.
           onEvent?.({ type: "error", ply, message: result.error });
+          if (activePlayer.control === "ai" && ++consecutiveErrors >= MAX_CONSECUTIVE_ERRORS) {
+            return this.endGame("draw", "abort", onEvent, {
+              faultPlayer: faultColor,
+              failureClass: "player_exception",
+              errorMessage: result.error,
+              attemptedMove: JSON.stringify(choice),
+              quantumState: getQuantumHealth(),
+              consecutiveErrors,
+            }, peaks);
+          }
           continue;
         }
         console.error(`[QCMatchRunner] Move execution failed for ${activePlayer.name}:`, choice, result.moveRecord);
@@ -299,6 +311,8 @@ export class QCMatchRunner {
           quantumState: getQuantumHealth(),
         }, peaks);
       }
+
+      consecutiveErrors = 0;
 
       // The move is now part of the game and can't be taken back (undo
       // rebuilds the position from scratch instead). Release the adapter's

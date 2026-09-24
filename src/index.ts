@@ -79,6 +79,9 @@ export type { GameConnection } from "./adapters/remote-human";
 export { MatchBridge } from "./adapters/match-bridge";
 export type { MatchBridgeCallbacks } from "./adapters/match-bridge";
 
+// One-at-a-time access to a single engine process
+export { SerialQueue } from "./serial-queue";
+
 
 // Node-only WASM adapters live behind the "/node" subpath so they don't
 // pull node:fs / node:worker_threads transitively into browser bundles.

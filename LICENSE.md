@@ -4,8 +4,10 @@ This package contains two separately licensed components:
 
 1. **SDK code** — all TypeScript/JavaScript source and declaration files
    in this package — licensed under the **MIT License** (Part A).
-2. **Engine Binary** — the compiled quantum engine distributed with this
-   package as `dist/wasm/qc-game.wasm`, together with any successor or
+2. **Engine Binary** — the compiled quantum engine, `qc-game.wasm`,
+   wherever it appears: in this package as `dist/wasm/qc-game.wasm`, in
+   this package's source repository as `src/quantum/wasm/qc-game.wasm` and
+   in that repository's history, together with any successor or
    replacement compiled engine artifacts distributed in future versions —
    licensed under the **Quantum Native Engine License** (Part B). The MIT
    License does NOT apply to the Engine Binary.

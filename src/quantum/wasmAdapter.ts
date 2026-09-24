@@ -15,7 +15,7 @@
 // dispose() them when done. Each instance is independent.
 
 import {
-  MoveType, MoveVariant,
+  MoveType, MoveVariant, STANDARD_SPLIT_FRACTION,
   type QChessGameData, type QChessMove, type QuantumMoveResult,
 } from "../core";
 
@@ -37,6 +37,8 @@ import type {
  */
 export interface QCGameModule {
   QCGame: new () => QCGameInstance;
+  /** The simulator's cap on basis states in one entangled component. */
+  maxStateSize(): number;
   // embind exposes enums as objects whose values have a .value member;
   // we map the canonical TS enum values onto C++ side directly so this
   // shape isn't actually needed at runtime — kept here for typing only.
@@ -55,8 +57,9 @@ interface QCGameInstance {
     type: number, variant: number,
     s1: number, s2: number, s3: number,
     doesMeasurement: boolean, measurementOutcome: number,
-    phaseQuarters: number,
+    phaseQuarters: number, splitFraction: number,
   ): { applied: boolean; measured: boolean; measurementPassed: number };
+  stateSizeBound(type: number, variant: number, s1: number, s2: number, s3: number): number;
   isFullyClassical(): boolean;
   hasSquareProperty(s: number): boolean;
   isClassicallyOccupied(s: number): boolean;
@@ -120,6 +123,7 @@ export function resetCachedQCGameModule(): void {
 
 export class QuantumChessQuantumAdapterWasm {
   private readonly game: QCGameInstance;
+  private readonly stateSizeCap: number;
   private disposed = false;
 
   /**
@@ -129,6 +133,7 @@ export class QuantumChessQuantumAdapterWasm {
    */
   constructor(module: QCGameModule) {
     this.game = new module.QCGame();
+    this.stateSizeCap = module.maxStateSize();
   }
 
   /** Convenience: load the module + construct in one await. */
@@ -182,6 +187,7 @@ export class QuantumChessQuantumAdapterWasm {
       move.doesMeasurement ?? false,
       move.measurementOutcome ?? 0,
       move.phaseQuarters ?? 0,
+      move.splitFraction ?? STANDARD_SPLIT_FRACTION,
     );
     const passed: boolean | undefined =
       r.measurementPassed === -1 ? undefined : r.measurementPassed === 1;
@@ -190,6 +196,26 @@ export class QuantumChessQuantumAdapterWasm {
       measured: r.measured,
       ...(passed !== undefined ? { measurementPassed: passed } : {}),
     };
+  }
+
+  /**
+   * Upper bound on the basis states of the entangled component `move` would
+   * leave behind: the product of every component it touches, doubled for a
+   * split or merge. A move whose bound passes maxStateSize() is one the
+   * simulator may refuse part way through.
+   */
+  stateSizeBound(move: QChessMove): number {
+    if (this.disposed) return 1;
+    return this.game.stateSizeBound(
+      move.type as unknown as number,
+      move.variant as unknown as number,
+      move.square1, move.square2, move.square3 ?? -1,
+    );
+  }
+
+  /** The simulator's cap on basis states in one entangled component. */
+  maxStateSize(): number {
+    return this.stateSizeCap;
   }
 
   // --- Measurement -----------------------------------------------------------

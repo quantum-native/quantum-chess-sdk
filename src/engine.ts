@@ -20,7 +20,11 @@ import {
   type LegalTargetOptions,
   MoveVariant,
   MoveType,
-  slidePathSquares
+  slidePathSquares,
+  formatRiderSuffix,
+  isWholeQuarterPhase,
+  normalizePhaseQuarters,
+  normalizeSplitFraction
 } from "./core";
 import type { QuantumChessAdapter, QuantumMoveResult } from "./quantum";
 import { buildLegalMoveSet } from "./legal-moves";
@@ -35,23 +39,29 @@ import type {
 
 export type MeasurementForceMode = "random" | "m0" | "m1";
 
-/** Clamp a choice's phase rider to a canonical integer in 0..3. */
-function normalizePhaseQuarters(raw: number | undefined): number {
-  if (!raw || !Number.isFinite(raw)) return 0;
-  return ((Math.round(raw) % 4) + 4) % 4;
-}
 
 // ---------------------------------------------------------------------------
 // Helpers (moved from apps/web/src/engine/actions.ts)
 // ---------------------------------------------------------------------------
 
-function syncProbabilitiesFromQuantum(
+/**
+ * A copy of `gameData` carrying the quantum adapter's current existence
+ * probabilities. Deliberately not in place: the engine's current game data
+ * is the object the previous move event handed out, and the app reads it as
+ * the pre-move board while a move's animation plays. Writing post-move
+ * probabilities into it produced a board with pre-move pieces and post-move
+ * probabilities, and the measurement animation dropped the eye from a
+ * superposed piece the capture had just collapsed off its path.
+ */
+function withProbabilitiesFromQuantum(
   gameData: QChessGameData,
   quantum: QuantumChessAdapter
-): void {
+): QChessGameData {
+  const next = cloneGameData(gameData);
   for (let sq = 0; sq < 64; sq++) {
-    gameData.board.probabilities[sq] = quantum.getExistenceProbability(sq);
+    next.board.probabilities[sq] = quantum.getExistenceProbability(sq);
   }
+  return next;
 }
 
 function applyMeasurementForcing(move: QChessMove, mode: MeasurementForceMode): void {
@@ -199,10 +209,9 @@ export class QCEngine {
 
     const sourcePiece = pieceForMoveSource(gameData, move);
     const quantumResult = this.quantum.applyMove(move);
-    syncProbabilitiesFromQuantum(gameData, this.quantum);
+    gameData = withProbabilitiesFromQuantum(gameData, this.quantum);
 
     if (!quantumResult.applied) {
-      gameData = cloneGameData(gameData);
       gameData.board.ply += 1;
       gameData.board.enPassantSquare = -1;
       const fifty = updateFiftyMoveCounter(gameData);
@@ -388,10 +397,14 @@ export class QCEngine {
         result = this.executeStandardMove(choice.from, choice.to, choice.promotion, phaseQuarters);
         break;
       case "split":
-        result = this.executeSplitMove(choice.from, choice.targetA, choice.targetB, phaseQuarters);
+        result = this.executeSplitMove(
+          choice.from, choice.targetA, choice.targetB, phaseQuarters, normalizeSplitFraction(choice.splitFraction)
+        );
         break;
       case "merge":
-        result = this.executeMergeMove(choice.sourceA, choice.sourceB, choice.to, phaseQuarters);
+        result = this.executeMergeMove(
+          choice.sourceA, choice.sourceB, choice.to, phaseQuarters, normalizeSplitFraction(choice.splitFraction)
+        );
         break;
     }
 
@@ -513,8 +526,19 @@ export class QCEngine {
    * callers that bypass it (direct engine use, remote inputs).
    */
   private checkChoiceAgainstRules(choice: QCMoveChoice): string | null {
-    if (choice.phaseQuarters && !(this.rules.quantumEnabled && this.rules.allowPhaseRotation)) {
+    const phaseQuarters = normalizePhaseQuarters(choice.phaseQuarters);
+    if (phaseQuarters && !(this.rules.quantumEnabled && this.rules.allowPhaseRotation)) {
       return "Phase rotation is not allowed by the active ruleset.";
+    }
+    if (phaseQuarters && !isWholeQuarterPhase(phaseQuarters) && !this.rules.phaseAnyAngle) {
+      return "The active ruleset only allows phase rotations in quarter turns.";
+    }
+    if (
+      (choice.type === "split" || choice.type === "merge") &&
+      normalizeSplitFraction(choice.splitFraction) !== undefined &&
+      !this.rules.allowSplitStrength
+    ) {
+      return "Split strength is not allowed by the active ruleset.";
     }
     if (choice.type === "split" && !(this.rules.quantumEnabled && this.rules.allowSplit)) {
       return "Split moves are not allowed by the active ruleset.";
@@ -523,6 +547,17 @@ export class QCEngine {
       return "Merge moves are not allowed by the active ruleset.";
     }
     return null;
+  }
+
+  /**
+   * Refuse a move the simulator might not finish: its bound on the entangled
+   * state during the move is past the simulator's cap. Past the cap
+   * QuantumForge throws part way through a move, so every mode checks first.
+   */
+  private stateSizeRefusal(move: QChessMove): string | null {
+    const cap = this.quantum.maxStateSize();
+    if (this.quantum.stateSizeBound(move) <= cap) return null;
+    return `This move could entangle more than ${cap.toLocaleString("en-US")} branches, the simulator's limit. Measure or merge something first.`;
   }
 
   private executeStandardMove(
@@ -534,8 +569,6 @@ export class QCEngine {
     const gameData = this.gameData;
     const movingPiece = gameData.board.pieces[source];
     const targetPiece = gameData.board.pieces[target];
-    // Captured BEFORE applyQuantumMove: syncProbabilitiesFromQuantum below
-    // overwrites gameData's probabilities in place with the post-move state.
     const moverWasSuperposed = gameData.board.probabilities[source] < 1 - 1e-6;
     const epSuffix = gameData.board.enPassantSquare === target && movingPiece.toLowerCase() === "p" ? "ep" : "";
     const promoSuffix = promotionPiece
@@ -555,11 +588,10 @@ export class QCEngine {
       };
     }
 
-    // Read before applyQuantumMove for the same reason as moverWasSuperposed:
-    // the probabilities are overwritten in place below. A legal slide can only
-    // have superposed occupants strictly between source and target (a full
-    // piece there makes it illegal), so occupancy on the path means the
-    // exclusion measurement had something to interrogate.
+    // A legal slide can only have superposed occupants strictly between
+    // source and target (a full piece there makes it illegal), so occupancy
+    // on the path means the exclusion measurement had something to
+    // interrogate.
     const targetWasOccupied = gameData.board.probabilities[target] > 1e-6;
     const isWhiteMover = movingPiece === movingPiece.toUpperCase();
     const pathHadSuperposedPiece =
@@ -568,6 +600,17 @@ export class QCEngine {
         const p = gameData.board.probabilities[sq];
         return p > 1e-6 && p < 1 - 1e-6;
       });
+
+    const sizeRefusal = this.stateSizeRefusal(move);
+    if (sizeRefusal) {
+      return {
+        success: false,
+        gameData,
+        moveRecord: { moveString, notation: moveString, ply: gameData.board.ply, wasBlocked: false, wasMeasurement: false },
+        measurementText: "",
+        error: sizeRefusal
+      };
+    }
 
     const quantumResult = this.applyQuantumMove(move, gameData);
     if (!quantumResult) {
@@ -580,7 +623,7 @@ export class QCEngine {
       };
     }
 
-    syncProbabilitiesFromQuantum(gameData, this.quantum);
+    const synced = withProbabilitiesFromQuantum(gameData, this.quantum);
 
     let measurementText = "";
     if (quantumResult.measured) {
@@ -591,7 +634,7 @@ export class QCEngine {
 
     if (!quantumResult.applied) {
       if (quantumResult.measured) {
-        const next = cloneGameData(gameData);
+        const next = synced;
         next.board.ply += 1;
         next.board.enPassantSquare = -1;
         const fifty = updateFiftyMoveCounter(next);
@@ -624,7 +667,7 @@ export class QCEngine {
       };
     }
 
-    const nextData = applyClassicalShadowMove(gameData, move);
+    const nextData = applyClassicalShadowMove(synced, move);
     if (move.promotionPiece) {
       const isWhite = movingPiece === movingPiece.toUpperCase();
       const promoChar = String.fromCharCode(move.promotionPiece);
@@ -636,8 +679,7 @@ export class QCEngine {
     }
     prunePiecesByProbabilities(nextData);
 
-    const phaseSuffix = move.phaseQuarters ? `.p${move.phaseQuarters}` : "";
-    const appliedNotation = `${quantumResult.measured ? `${moveString}.m1` : moveString}${phaseSuffix}`;
+    const appliedNotation = `${quantumResult.measured ? `${moveString}.m1` : moveString}${formatRiderSuffix(move)}`;
     nextData.position.history = [...gameData.position.history, appliedNotation];
     const record: QCMoveRecord = {
       moveString: appliedNotation,
@@ -665,7 +707,8 @@ export class QCEngine {
     source: number,
     firstTarget: number,
     secondTarget: number,
-    phaseQuarters = 0
+    phaseQuarters = 0,
+    splitFraction?: number
   ): QCMoveExecutionResult {
     const gameData = this.gameData;
 
@@ -682,12 +725,24 @@ export class QCEngine {
     const moveString = `${indexToSquareName(source)}^${indexToSquareName(firstTarget)}${indexToSquareName(secondTarget)}`;
     const move = parseMoveString(moveString, gameData);
     if (move && phaseQuarters) move.phaseQuarters = phaseQuarters;
+    if (move && splitFraction !== undefined) move.splitFraction = splitFraction;
     if (!move) {
       return {
         success: false,
         gameData,
         moveRecord: { moveString, notation: moveString, ply: gameData.board.ply, wasBlocked: false, wasMeasurement: false },
         measurementText: ""
+      };
+    }
+
+    const sizeRefusal = this.stateSizeRefusal(move);
+    if (sizeRefusal) {
+      return {
+        success: false,
+        gameData,
+        moveRecord: { moveString, notation: moveString, ply: gameData.board.ply, wasBlocked: false, wasMeasurement: false },
+        measurementText: "",
+        error: sizeRefusal
       };
     }
 
@@ -702,7 +757,7 @@ export class QCEngine {
       };
     }
 
-    syncProbabilitiesFromQuantum(gameData, this.quantum);
+    const synced = withProbabilitiesFromQuantum(gameData, this.quantum);
 
     const measurementText = quantumResult.measured
       ? (quantumResult.applied ? "Measured \u2713 \u2192 move applied" : "Measured \u2717 \u2192 no-op turn")
@@ -717,12 +772,11 @@ export class QCEngine {
       };
     }
 
-    const nextData = applyClassicalShadowMove(gameData, move);
+    const nextData = applyClassicalShadowMove(synced, move);
     remapPieceSymbol(nextData, sourcePiece, [move.square1, move.square2, move.square3]);
     prunePiecesByProbabilities(nextData);
 
-    const splitPhaseSuffix = move.phaseQuarters ? `.p${move.phaseQuarters}` : "";
-    const splitNotation = `${quantumResult.measured ? `${moveString}.m1` : moveString}${splitPhaseSuffix}`;
+    const splitNotation = `${quantumResult.measured ? `${moveString}.m1` : moveString}${formatRiderSuffix(move)}`;
     nextData.position.history = [...gameData.position.history, splitNotation];
     const record: QCMoveRecord = {
       moveString: splitNotation,
@@ -742,13 +796,15 @@ export class QCEngine {
     sourceA: number,
     sourceB: number,
     target: number,
-    phaseQuarters = 0
+    phaseQuarters = 0,
+    splitFraction?: number
   ): QCMoveExecutionResult {
     const gameData = this.gameData;
     const sourcePiece = gameData.board.pieces[sourceA] !== "." ? gameData.board.pieces[sourceA] : gameData.board.pieces[sourceB];
     const moveString = `${indexToSquareName(sourceA)}${indexToSquareName(sourceB)}^${indexToSquareName(target)}`;
     const move = parseMoveString(moveString, gameData);
     if (move && phaseQuarters) move.phaseQuarters = phaseQuarters;
+    if (move && splitFraction !== undefined) move.splitFraction = splitFraction;
 
     if (!move) {
       return {
@@ -756,6 +812,17 @@ export class QCEngine {
         gameData,
         moveRecord: { moveString, notation: moveString, ply: gameData.board.ply, wasBlocked: false, wasMeasurement: false },
         measurementText: ""
+      };
+    }
+
+    const sizeRefusal = this.stateSizeRefusal(move);
+    if (sizeRefusal) {
+      return {
+        success: false,
+        gameData,
+        moveRecord: { moveString, notation: moveString, ply: gameData.board.ply, wasBlocked: false, wasMeasurement: false },
+        measurementText: "",
+        error: sizeRefusal
       };
     }
 
@@ -770,7 +837,7 @@ export class QCEngine {
       };
     }
 
-    syncProbabilitiesFromQuantum(gameData, this.quantum);
+    const synced = withProbabilitiesFromQuantum(gameData, this.quantum);
 
     const measurementText = quantumResult.measured
       ? (quantumResult.applied ? "Measured \u2713 \u2192 move applied" : "Measured \u2717 \u2192 no-op turn")
@@ -785,12 +852,11 @@ export class QCEngine {
       };
     }
 
-    const nextData = applyClassicalShadowMove(gameData, move);
+    const nextData = applyClassicalShadowMove(synced, move);
     remapPieceSymbol(nextData, sourcePiece, [move.square1, move.square2, move.square3]);
     prunePiecesByProbabilities(nextData);
 
-    const mergePhaseSuffix = move.phaseQuarters ? `.p${move.phaseQuarters}` : "";
-    const mergeNotation = `${quantumResult.measured ? `${moveString}.m1` : moveString}${mergePhaseSuffix}`;
+    const mergeNotation = `${quantumResult.measured ? `${moveString}.m1` : moveString}${formatRiderSuffix(move)}`;
     nextData.position.history = [...gameData.position.history, mergeNotation];
     const record: QCMoveRecord = {
       moveString: mergeNotation,

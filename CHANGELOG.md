@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.7.0 (2026-09-24)
+
+**Universal QC riders.** A phase rotation can now take any angle, and a split
+or merge can take a strength. Both are gated by the rules:
+`UNIVERSAL_QC_VARIANT` turns them on (`phaseAnyAngle`, `allowSplitStrength`).
+`QCMoveChoice` gains `splitFraction` on splits and merges. A split's first
+iSwap, from the source to `targetA`, runs at that fraction. A merge's iSwap
+with `sourceA` runs at minus that fraction, so a merge at a strength undoes
+a split at that strength. In notation, `.a<millidegrees>` is an angle that
+is not a whole quarter turn and `.s<n>` is a strength of n/10000, e.g.
+`g1^f3h3.s2500.a45000`. Whole quarter turns are still `.p<k>`. New helpers:
+`formatRiderSuffix`, `normalizePhaseQuarters`, `normalizeSplitFraction`,
+`isWholeQuarterPhase`.
+
+**Breaking: a fraction of a quarter turn is refused, not rounded.** Under
+rules without `phaseAnyAngle`, `phaseQuarters: 1.4` used to play as 1; it now
+fails with an error.
+
+**Breaking: `QuantumChessAdapter` has two more methods.** `stateSizeBound(move)`
+and `maxStateSize()`. The engine refuses a move whose entangled state could
+pass the simulator's cap of 100,000 basis states, instead of letting the
+simulator throw part way through the move. Custom adapters must implement
+both. A move refused this way returns an error and the player may try again;
+an AI that keeps offering a refused move ends the match as a draw after
+three tries.
+
+Also new: `takebackAllowedInMode`, `takebackAllowedForGame` and
+`takebackPlyCount` for agreed takebacks, and `SerialQueue`, which the module
+worker player now uses so concurrent engine requests run one at a time.
+
+**License.** `LICENSE.md` now names the engine binary wherever it appears,
+including `src/quantum/wasm/qc-game.wasm` in this repository and its history.
+Versions 0.2.3 to 0.5.0 shipped the engine binary with MIT metadata; they are
+deprecated.
+
 ## 0.6.0 (2026-09-04)
 
 **License: the package is now explicitly split-licensed.** The TypeScript
