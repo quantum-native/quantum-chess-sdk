@@ -46,7 +46,7 @@ for f in "$PKGS/qc-sdk/src/"*.ts; do
   esac
   cp "$f" "$DST/$b"
 done
-sed -i '' 's#@quantum-native/quantum-chess-core#./core#g; s#@quantum-chess/qc-quantum#./quantum#g' "$DST/"*.ts
+sed -i '' 's#@quantum-native/quantum-chess-core#./core#g; s#@quantum-native/quantum-chess-quantum#./quantum#g' "$DST/"*.ts
 
 # --- adapters: copy included only (exclude aqaqaq + node adapters) ---
 rm -rf "$DST/adapters"; mkdir -p "$DST/adapters"
@@ -57,21 +57,20 @@ for f in "$PKGS/qc-sdk/src/adapters/"*.ts; do
   esac
   cp "$f" "$DST/adapters/$b"
 done
-sed -i '' 's#@quantum-native/quantum-chess-core#../core#g; s#@quantum-chess/qc-quantum#../quantum#g' "$DST/adapters/"*.ts
+sed -i '' 's#@quantum-native/quantum-chess-core#../core#g; s#@quantum-native/quantum-chess-quantum#../quantum#g' "$DST/adapters/"*.ts
 
 # --- tournament: copy verbatim + rewrite ---
 rm -rf "$DST/tournament"; mkdir -p "$DST/tournament"
 cp "$PKGS/qc-sdk/src/tournament/"*.ts "$DST/tournament/"
-sed -i '' 's#@quantum-native/quantum-chess-core#../core#g; s#@quantum-chess/qc-quantum#../quantum#g' "$DST/tournament/"*.ts
+sed -i '' 's#@quantum-native/quantum-chess-core#../core#g; s#@quantum-native/quantum-chess-quantum#../quantum#g' "$DST/tournament/"*.ts
 
 # --- index.ts: regenerate from monorepo, drop the aqaqaq export block ---
-#   removes the three "Aqaqaq adapters" export lines, then rewrites imports.
+#   removes the "Aqaqaq adapters" export lines, then rewrites imports.
 sed -e '/Aqaqaq adapters/d' \
-    -e '\#export { AqaqaqLegacyAdapter } from "./adapters/aqaqaq-legacy";#d' \
-    -e '\#export { AqaqaqHybridAdapter } from "./adapters/aqaqaq-hybrid";#d' \
-    -e '\#export type { LegacyAIPort, AqaqaqOptions } from "./adapters/aqaqaq-legacy";#d' \
+    -e '\#export { AqaqaqAdapter } from "./adapters/aqaqaq-adapter";#d' \
+    -e '\#export type { EnginePort, AqaqaqOptions } from "./adapters/aqaqaq-adapter";#d' \
     -e 's#@quantum-native/quantum-chess-core#./core#g' \
-    -e 's#@quantum-chess/qc-quantum#./quantum#g' \
+    -e 's#@quantum-native/quantum-chess-quantum#./quantum#g' \
     "$PKGS/qc-sdk/src/index.ts" > "$DST/index.ts"
 
 echo "Done. ai-loader.ts left untouched (hand-trimmed)."
