@@ -2,7 +2,7 @@
 
 Thanks for your interest in contributing! This project is open to pull requests and issues from the community.
 
-Join the [Quantum Chess Discord](https://discord.gg/cMJgTBcZDT) to discuss ideas, get help, and connect with other contributors.
+Join the [Quantum Native Discord](https://quantumnative.io/discord) to discuss ideas, get help, and connect with other contributors.
 
 ## Reporting Issues
 
